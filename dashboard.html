@@ -239,6 +239,7 @@ tr.me td { font-weight: 600; }
       <form id="match-form">
         <label>Seeds <input type="number" id="m-seeds" value="8" min="1" max="16"></label>
         <button class="primary" id="match-btn" type="submit">Run match</button>
+        <span class="note" id="m-size" style="margin:0 0 8px"></span>
       </form>
     </div>
     <div id="match-out"><div class="empty-state" style="padding:16px 0">No match yet.</div></div>
@@ -831,7 +832,7 @@ async function runMatch() {
     if (!r.ok) throw new Error(m.error || r.statusText);
     renderMatch(m);
   } catch (e) {
-    out.innerHTML = `<div class="warn" style="margin:8px 0">Match failed: ${esc(e.message)}</div>`;
+    out.innerHTML = `<div class="warn" style="margin:8px 0">Match failed: ${esc(e.message)}${e instanceof TypeError ? ' (is dashboard.py running?)' : ''}</div>`;
   } finally { btn.disabled = false; }
 }
 function renderMatch(m) {
@@ -855,6 +856,12 @@ function renderMatch(m) {
       ${rows}</table></div>`;
 }
 $('match-form').addEventListener('submit', ev => { ev.preventDefault(); runMatch(); });
+function showMatchSize() {      // a match reuses Games and Hands per game from the controls above
+  const seeds = +$('m-seeds').value || 0, per = (+$('games').value || 0) * (+$('hands').value || 0);
+  $('m-size').textContent = `${fmt(seeds)} seed${seeds === 1 ? '' : 's'} × ${fmt(per)} hands each (Games × Hands per game above)`;
+}
+['m-seeds', 'games', 'hands'].forEach(id => $(id).addEventListener('input', showMatchSize));
+showMatchSize();
 
 async function runSim() {
   const q = runParams();
@@ -879,7 +886,8 @@ async function runSim() {
     const m = location.hash.match(/hand=(\d+)/);       // e.g. #hand=42 opens hand 42
     if (m && +m[1] >= 1 && +m[1] <= A.N) openHand(+m[1] - 1, true);
   } catch (e) {
-    st.className = 'error'; st.textContent = 'Run failed: ' + e.message + ' (is dashboard.py running?)';
+    st.className = 'error';
+    st.textContent = 'Run failed: ' + e.message + (e instanceof TypeError ? ' (is dashboard.py running?)' : '');
   } finally { btn.disabled = false; }
 }
 $('run-form').addEventListener('submit', ev => { ev.preventDefault(); runSim(); });

@@ -33,7 +33,8 @@ from strategy import classify
 
 HERE = Path(__file__).parent
 KIND_CODE = {'blind': 'b', 'fold': 'f', 'check': 'x', 'call': 'c', 'bet': 'B', 'raise': 'R'}
-MAX_HANDS = 50_000
+MAX_HANDS = 50_000          # one run sends every hand to the page, so keep it loadable
+MAX_MATCH_HANDS = 200_000   # a match sends only standings; this just bounds the wait
 MAX_SEEDS = 16
 
 
@@ -111,11 +112,17 @@ def parse_bots(text, hero=bot.NAME):
     return tuple(names)
 
 
-def parse_common(q):
+def parse_common(q, match=False):
     games = max(1, int(q.get('games', 500)))
     hands = max(1, int(q.get('hands', 20)))
-    if games * hands > MAX_HANDS:
-        raise ValueError(f'at most {MAX_HANDS:,} hands per run')
+    if not match and games * hands > MAX_HANDS:
+        raise ValueError(f'Games × hands per game is {games * hands:,}. A single run is capped at '
+                         f'{MAX_HANDS:,} hands because the page loads every hand; lower Games or '
+                         f'Hands per game, or use Run match for longer tests.')
+    if match and games * hands > MAX_MATCH_HANDS:
+        raise ValueError(f'Games × hands per game is {games * hands:,}. A match is capped at '
+                         f'{MAX_MATCH_HANDS:,} hands per seed so it finishes in a few minutes; '
+                         f'lower Games or Hands per game, or add seeds instead.')
     hero = parse_hero(q)
     bots = parse_bots(q['bots'], hero) if 'bots' in q else tuple(n for n in DEFAULT_FIELD if n != hero)
     return games, hands, q.get('memory', '1') != '0', hero, bots
@@ -234,7 +241,7 @@ class Handler(BaseHTTPRequestHandler):
                              'problems': [{'file': f, 'error': e} for f, e in PROBLEMS]})
         elif url.path in ('/api/run', '/api/match'):
             try:
-                games, hands, memory, hero, bots = parse_common(q)
+                games, hands, memory, hero, bots = parse_common(q, match=url.path == '/api/match')
                 if url.path == '/api/run':
                     self._json(200, simulate(games, hands, int(q.get('seed', 0)), memory, bots, hero))
                 else:
