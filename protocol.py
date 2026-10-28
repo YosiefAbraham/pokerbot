@@ -50,3 +50,5 @@ class GameState:
     opponents: list      # opponents still in the hand
     history: list = field(default_factory=list)  # Events so far this hand
     hand_id: int = 0
+    stacks: dict = field(default_factory=dict)  # name -> chips behind, everyone at the table
+    bets: dict = field(default_factory=dict)    # name -> chips in on this street

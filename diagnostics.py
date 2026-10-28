@@ -113,7 +113,8 @@ def random_state(rng, bot_name):
                      pot=rng.randint(150, 20000), to_call=to_call, min_raise_to=min_to,
                      max_raise_to=max_to, stack=stack, committed=committed, big_blind=100,
                      position=positions[bot_name], positions=positions, opponents=opps,
-                     history=history)
+                     history=history, stacks={nm: rng.randint(0, 30000) for nm in names},
+                     bets={nm: rng.randint(0, 2000) for nm in names})
 
 
 def fuzz(n):

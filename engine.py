@@ -1,7 +1,10 @@
 """A local no-limit hold'em dealer for testing.
 
-Simplifications: stacks reset every hand, and an all-in raise smaller than a
-full raise still reopens the betting.
+Stacks carry over from hand to hand (carry=True, the default); a bot that busts
+buys back in for the starting stack before its next hand, and Table.rebuys counts
+it. Profit is the sum of hand nets, so every rebuy is chips lost. carry=False
+resets every stack to the starting stack each hand instead.
+Simplification: an all-in raise smaller than a full raise still reopens the betting.
 Bots that throw, or return something illegal, are folded (checked if free).
 """
 import random
@@ -32,9 +35,12 @@ def award(contrib, alive, values):
 
 
 class Table:
-    def __init__(self, bots, big_blind=100, small_blind=50, stack=10000, seed=None):
+    def __init__(self, bots, big_blind=100, small_blind=50, stack=10000, seed=None, carry=True):
         self.bots = bots
         self.bb, self.sb, self.stack = big_blind, small_blind, stack
+        self.carry = carry
+        self.stacks = {}                      # name -> chips, kept between hands when carrying
+        self.rebuys = defaultdict(int)
         self.rng = random.Random(seed)
         self.errors = defaultdict(int)
         self.illegal = defaultdict(int)
@@ -65,7 +71,16 @@ class _Hand:
         self.holes = {n: [self.deck.pop(), self.deck.pop()] for n in self.names}
         k = len(self.names)
         self.positions = {self.names[(button + off) % k]: position_name(off, k) for off in range(k)}
-        self.stacks = {n: table.stack for n in self.names}
+        if table.carry:
+            for n in self.names:
+                if table.stacks.get(n, 0) <= 0:          # new to the table, or busted: buy in
+                    if n in table.stacks:
+                        table.rebuys[n] += 1
+                    table.stacks[n] = table.stack
+            self.start = {n: table.stacks[n] for n in self.names}
+        else:
+            self.start = {n: table.stack for n in self.names}
+        self.stacks = dict(self.start)
         self.contrib = {n: 0 for n in self.names}
         self.commit = {n: 0 for n in self.names}
         self.folded = set()
@@ -125,6 +140,9 @@ class _Hand:
             payouts = award(self.contrib, alive_ordered, values)
             shown = {n: list(self.holes[n]) for n in alive}
         nets = {n: payouts.get(n, 0) - self.contrib[n] for n in names}
+        if t.carry:
+            for n in names:
+                t.stacks[n] += nets[n]
         for b in self.bots:
             t._call(b, 'end_hand', dict(nets), dict(shown), list(self.board))
         return nets
@@ -153,7 +171,8 @@ class _Hand:
                 stack=self.stacks[n], committed=self.commit[n], big_blind=t.bb,
                 position=self.positions[n], positions=dict(self.positions),
                 opponents=[o for o in self.alive() if o != n],
-                history=list(self.history), hand_id=self.hand_id)
+                history=list(self.history), hand_id=self.hand_id,
+                stacks=dict(self.stacks), bets=dict(self.commit))
             t0 = time.perf_counter()
             action = t._call(self.by_name[n], 'act', state)
             t.max_ms[n] = max(t.max_ms[n], (time.perf_counter() - t0) * 1000)

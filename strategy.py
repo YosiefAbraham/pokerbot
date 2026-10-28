@@ -54,15 +54,24 @@ def decide(s, book):
         return legalize(preflop(s, book), s)
     action = legalize(postflop(s, book), s)
     if goes_all_in(action, s) and not all_in_ok(s, book):
-        if s.to_call >= s.stack:
+        if s.committed + s.to_call >= effective_to(s):
             return FOLD                              # calling would be all-in: let it go
         return CALL if s.to_call > 0 else CHECK
     return action
 
 
+def effective_to(s):
+    """The largest street total that can actually be called: ours, capped by the deepest
+    opponent still in (their chips in this street plus behind). With unknown stacks, ours."""
+    caps = [s.bets.get(n, 0) + s.stacks[n] for n in s.opponents if n in s.stacks]
+    return min(s.max_raise_to, max(caps)) if caps else s.max_raise_to
+
+
 def goes_all_in(a, s):
-    return ((a[0] == 'raise' and a[1] >= s.max_raise_to)
-            or (a[0] == 'call' and s.to_call >= s.stack))
+    """True if the action commits the effective stack: ours, or the deepest opponent's."""
+    full = effective_to(s)
+    return ((a[0] == 'raise' and a[1] >= full)
+            or (a[0] == 'call' and s.committed + s.to_call >= full))
 
 
 def all_in_ok(s, book):
@@ -90,12 +99,13 @@ def legalize(a, s):
     """Turn any intended action into a legal one. Never fold for free."""
     kind = a[0]
     if kind == 'raise':
-        cap = raise_cap(s)
+        full = effective_to(s)                  # raising past what anyone can call is pointless
+        cap = min(raise_cap(s), full)
         if cap <= s.committed + s.to_call or cap < s.min_raise_to:   # no legal raise fits
             return CALL if s.to_call > 0 else CHECK
         to = min(max(a[1], s.min_raise_to), cap)
-        if s.max_raise_to - to < 0.3 * to and cap == s.max_raise_to:   # nearly all-in: shove
-            to = s.max_raise_to
+        if full - to < 0.3 * to and cap == full:                  # nearly all-in: shove
+            to = full
         return RAISE(to)
     if kind == 'check' and s.to_call > 0:
         return FOLD
@@ -163,7 +173,7 @@ def preflop(s, book):
     raiser = book.get(raises[-1].player)
     nit = raiser.kind() == 'nit'
     loose = raiser.kind() in ('maniac', 'loose') or raiser.is_tilting(book.hand_no)
-    eff = s.stack + s.committed
+    eff = effective_to(s)                    # what we can actually win or lose, not just our stack
 
     if key in SMALL_PAIRS:                   # set-mine any raise the stack behind can pay off
         return CALL if s.to_call * SET_MINE_MULT <= eff else FOLD

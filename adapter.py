@@ -38,7 +38,8 @@ def translate_state(msg, history):
         pot=msg['pot'], to_call=msg['to_call'], min_raise_to=msg['min_raise_to'],
         max_raise_to=msg['max_raise_to'], stack=msg['stack'], committed=msg['committed'],
         big_blind=msg.get('big_blind', 100), position=msg['position'],
-        positions=msg['positions'], opponents=msg['opponents'], history=history)
+        positions=msg['positions'], opponents=msg['opponents'], history=history,
+        stacks=msg.get('stacks', {}), bets=msg.get('bets', {}))
 
 
 def translate_action(action):

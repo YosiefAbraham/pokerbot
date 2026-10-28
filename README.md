@@ -20,7 +20,10 @@ A personal project with four parts:
 
 ### The game
 - No-limit Texas hold'em, up to **8 bots per table**, blinds **50/100**.
-- Stacks start at **10,000 chips (100 big blinds)** and reset every hand.
+- Everyone buys in for **10,000 chips (100 big blinds)**. **Stacks carry over** from hand to hand
+  (and game to game), and a bot that busts **buys back in for 100bb** automatically. Every rebuy
+  counts as chips lost. There's **no cap**: winners' stacks keep growing. A "reset every hand"
+  mode is also available (`--stacks reset`, or the dashboard's Stacks option).
 - A run is a series of games (20 hands each by default). Seats are reshuffled and the button
   moves between games.
 
@@ -48,6 +51,7 @@ uv sync
 uv run pytest -q                                   # 34 unit tests, ~1 s
 uv run python run_sim.py --games 500 --hands 20    # 10,000 hands vs the practice field, ~7 s
 uv run python run_sim.py --no-memory --seed 3      # wipe profiles between games
+uv run python run_sim.py --stacks reset            # every stack back to 100bb each hand
 uv run python diagnostics.py                       # full health check, ~110 s (--quick is faster)
 uv run python dashboard.py                         # browser dashboard: http://localhost:8000
                                                    # how Yosief decides: http://localhost:8000/transparency
@@ -117,14 +121,19 @@ dealer ──► adapter.py ──► bot.py (TightProfiler) ──┬─► pro
 3. **The bot can't crash or act illegally.**
    - Every public method of `TightProfiler` is wrapped in try/except. A failed `act()` returns
      check, or fold if checking isn't allowed.
+   - **Effective stack** (`strategy.effective_to`): the largest street total anyone can actually
+     call, which is our stack capped by the deepest opponent still in the hand. With uneven
+     stacks, our own stack is the wrong yardstick. Set-mining, the 35% re-raise call, raise
+     sizes and the all-in rule all use the effective stack.
    - `strategy.legalize()` maps any intended action onto a legal one: raises are clamped to the
-     legal range, the bot never folds when checking is free, and a raise that would leave less
-     than 30% behind becomes a shove.
+     legal range and never past the effective stack, the bot never folds when checking is free,
+     and a raise that would leave less than 30% of the effective stack behind becomes a shove.
    - **Raise cap** (`raise_cap`, `POT_CAP = 2`): no raise adds more than 2× the pot, even with
      AA. The only exception is a re-raise (a preflop 3-bet or more, or a postflop raise of a
      raise) with `AA, KK, AKs`. An unraised preflop pot is 1.5bb, so a standard open is 3bb.
-   - **All-in rule** (`decide`, `all_in_ok`): after the flop, Yosief only goes all-in, by raising
-     or by calling, with trips or better. With one or two pair, it goes all-in only when every
+   - **All-in rule** (`decide`, `all_in_ok`): after the flop, Yosief only goes all-in (commits the
+     effective stack, by raising or by calling, including calling a shorter stack's all-in) with
+     trips or better. With one or two pair, it goes all-in only when every
      opponent left in the hand is loose (`Profile.is_loose`). It never goes all-in when the
      board plays. Otherwise it calls or checks instead, or folds if calling would itself be
      all-in.
@@ -147,6 +156,9 @@ dealer ──► adapter.py ──► bot.py (TightProfiler) ──┬─► pro
   - `pot` includes the current street's bets.
   - `to_call`, plus `min_raise_to` and `max_raise_to` (both street totals; `max` means all-in).
   - `stack` is chips behind; `committed` is this street's chips in.
+  - `stacks` (name to chips behind) and `bets` (name to chips in this street) for everyone at
+    the table. Optional: a dealer that doesn't send them gets empty dicts, and Yosief then treats
+    its own stack as the effective stack.
   - `position`, `positions` (name to position), `opponents` (still in the hand) and `history`
     (this hand's events).
 - **Positions** for 8 players run UTG, UTG1, MP, HJ, CO, BTN, SB, BB. With fewer players the
@@ -164,7 +176,7 @@ dealer ──► adapter.py ──► bot.py (TightProfiler) ──┬─► pro
 
 | Situation | Rule |
 |---|---|
-| Small pairs `22–77` (`SMALL_PAIRS`), any seat | **Set-mining hands.** Limp (call 1bb) unopened or behind limpers; never isolate with them. The one exception is a steal: folded to the CO or button, they raise like any steal hand. Facing any raise or re-raise: call if the stack behind is at least 10× the call (`SET_MINE_MULT`), else fold. After the flop they continue only with a set or better (see §5.2) |
+| Small pairs `22–77` (`SMALL_PAIRS`), any seat | **Set-mining hands.** Limp (call 1bb) unopened or behind limpers; never isolate with them. The one exception is a steal: folded to the CO or button, they raise like any steal hand. Facing any raise or re-raise: call if the effective stack is at least 10× the call (`SET_MINE_MULT`), else fold. After the flop they continue only with a set or better (see §5.2) |
 | Early (UTG, UTG1) | Raise `88+, AQ+` (`EARLY_TIGHT`). **Wider, `88+, AJ+, KQs` (about 7%), only when a calling station is still to act** and a maniac doesn't act right after us: a caller behind pays off the wider opens. **If every opponent still to act folds to preflop raises over 75%** (`EARLY_WIDE_FOLD`): open the top 15% minus small pairs (`EARLY_WIDE`). This never triggers in the practice roster, because a full table always has a loose bot behind; it's meant for tighter opponents and is unmeasured |
 | Unopened, middle (MP, HJ) | Raise `88+, AJ+` |
 | Unopened, late, SB, BB | Raise `88+, AT+` |
@@ -266,8 +278,13 @@ tilting, or has a sizing tell that reads "weak".
 
 - **`engine.py`:** a local dealer with side pots (`award`), odd-chip rules, per-bot error,
   illegal-action and latency counters, and `Table.last_hand` for logging. A bot that throws or
-  returns something illegal is folded (or checked, if free). Simplifications: stacks reset every
-  hand, and an all-in smaller than a full raise still reopens the betting.
+  returns something illegal is folded (or checked, if free).
+  - **Stacks** carry over by default (`Table(carry=True)`): `Table.stacks` keeps each bot's chips
+    between hands. A bot at 0 buys back in for `stack` before its next hand, counted in
+    `Table.rebuys`. `carry=False` resets every stack each hand.
+  - Hand nets always sum to zero, so a bot's profit (the sum of its nets) already subtracts every
+    rebuy.
+  - Simplification: an all-in smaller than a full raise still reopens the betting.
 - **`opponents.py`:** the practice field, one bot per common player archetype:
   - `RIVERKING`: never folds and never raises. It checks whenever it can and calls whenever it
     must, every street through the river, whatever it holds.
@@ -285,13 +302,17 @@ tilting, or has a sizing tell that reads "weak".
 
   They're deliberately simple. **A good result against them doesn't mean the bot will do well
   against stronger or different bots.**
-- **`run_sim.py`:** `run(games, hands, seed, memory, on_hand=None)` reshuffles seats each game,
+- **`run_sim.py`:** `run(games, hands, seed, memory, on_hand=None, bots=..., hero=..., stacks='carry')`
+  reshuffles seats each game,
   rotates the button and asserts that chips are conserved every hand. The CLI prints the
   leaderboard and Yosief's reads.
 - **`dashboard.py` and `dashboard.html`:**
-  - `GET /api/run?games=&hands=&seed=&memory=&bots=` returns per-bot totals, Yosief's reads and a
-    compact log of every hand: all hole cards, board, actions as `[bot, street, kind, amount, to,
-    pot_before]`, nets, and Yosief's postflop buckets. Runs are capped at 50,000 hands.
+  - `GET /api/run?games=&hands=&seed=&memory=&bots=&hero=&stacks=` returns per-bot totals and
+    rebuys, the hero's reads, and a compact log of every hand: all hole cards, starting stacks,
+    board, actions as `[bot, street, kind, amount, to, pot_before]`, nets, and the hero's postflop
+    buckets. A single run is capped at 50,000 hands (`/api/match` at 200,000 per seed).
+  - **Stacks** option in the controls: carry over with 100bb rebuys (default) or reset every
+    hand. The leaderboard and match table show rebuys, and the hand replay shows every stack.
   - `bots` is an optional comma list of 1–7 roster names (default `DEFAULT_FIELD`). Unknown or
     duplicate names, or more than 7, return 400. `GET /api/bots` lists the roster with
     descriptions.
@@ -327,7 +348,27 @@ tilting, or has a sizing tell that reads "weak".
 
 ## 7. What has been measured (as of 2026-10-27)
 
-### Latest: loosening against loose bots, plus equity-based calls
+### Stacks carried over with rebuys (current default)
+**Every measurement below this section used the old reset-every-hand rule.** Same 8 seeds,
+10,000 hands each, Yosief's bb/100:
+
+| Rule | With RIVERKING | Without RIVERKING |
+|---|---|---|
+| Reset every hand (old) | +490 ± 20, 1st on 7 of 8 | +206 ± 15, 1st on 4 of 8 |
+| **Carry over, 100bb rebuys, no cap (default)** | +2,710 ± 749, 1st on 7 of 8 | +785 ± 233, 1st on 6 of 8 |
+| Carry over, at most 300bb in play (tested, not kept) | +897 ± 42, 1st on 8 of 8 | +302 ± 34, 1st on 6 of 8 |
+
+- **Reset mode is unchanged** by the effective-stack logic: it reproduces +489.6 and +205.8
+  exactly.
+- **Uncapped stacks are about 37× noisier.** Winners' stacks grow without limit (on seed 0
+  Yosief ended with 313,714bb and NIT with 70,421bb), so a few pots between two huge stacks
+  decide a run. Donors bust constantly: RIVERKING rebought 1,738 times in 10,000 hands.
+- A 300bb cap on chips in play keeps the noise near reset mode. It was tested and not kept, by
+  choice.
+- **Practical effect:** with the default rule, judge bots by matches with many seeds (16), and
+  expect single runs to swing by thousands of bb/100.
+
+### Strategy changes (measured with stacks reset every hand)
 Measured on 8 seeds (0–7) × 10,000 hands each, with profiles kept:
 
 | Version | Mean bb/100 | Std. error | Finish |
@@ -554,11 +595,14 @@ git add bots/<yourname>.py && git commit -m "..." && git push
 - Don't edit anyone else's bot file. Changes to shared files (engine, dashboard, practice bots)
   should be agreed, since they change everyone's results.
 - Keep decisions under about 50 ms, so matches stay quick.
-- Judge bots by matches (8+ seeds), not single runs. One run swings about ±45 bb/100 from luck.
+- Judge bots by matches, not single runs. With the default carry-over stacks, one 10,000-hand
+  run swings by hundreds to thousands of bb/100 from luck, so use 16 seeds. With reset stacks,
+  ±45 and 8 seeds are enough.
 - Bots must be Python for now. Another language would need a small wrapper that runs it as a
   separate program speaking JSON over stdin/stdout, as `adapter.py` does. That isn't built yet.
 
-First measured match (8 seeds × 10,000 hands, YOSIEF vs STARTER plus 6 practice bots):
+First measured match (8 seeds × 10,000 hands, YOSIEF vs STARTER plus 6 practice bots, stacks reset
+every hand):
 - with RIVERKING seated, YOSIEF is ahead by +131 ± 33 bb/100;
 - without RIVERKING, +9 ± 23, too close to call.
 

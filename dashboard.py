@@ -28,7 +28,7 @@ from bots import CONTESTANTS, PROBLEMS, about
 from opponents import DEFAULT_FIELD, MAX_OPPONENTS, ROSTER
 from protocol import STREETS
 from ranges import PERCENTILE, chen, combos, hand_key
-from run_sim import run, seed_result
+from run_sim import STACK_MODES, run, seed_result
 from strategy import classify
 
 HERE = Path(__file__).parent
@@ -125,10 +125,13 @@ def parse_common(q, match=False):
                          f'lower Games or Hands per game, or add seeds instead.')
     hero = parse_hero(q)
     bots = parse_bots(q['bots'], hero) if 'bots' in q else tuple(n for n in DEFAULT_FIELD if n != hero)
-    return games, hands, q.get('memory', '1') != '0', hero, bots
+    stacks = q.get('stacks', 'carry')
+    if stacks not in STACK_MODES:
+        raise ValueError(f'stacks must be one of {", ".join(STACK_MODES)}')
+    return games, hands, q.get('memory', '1') != '0', hero, bots, stacks
 
 
-def simulate(games, hands, seed, memory, bots=DEFAULT_FIELD, hero=bot.NAME):
+def simulate(games, hands, seed, memory, bots=DEFAULT_FIELD, hero=bot.NAME, stacks='carry'):
     log = []
     names = []
 
@@ -146,22 +149,24 @@ def simulate(games, hands, seed, memory, bots=DEFAULT_FIELD, hero=bot.NAME):
             'acts': [[idx[e.player], STREETS.index(e.street), KIND_CODE[e.kind], e.amount, e.to,
                       e.pot_before] for e in h.history],
             'nets': [nets[n] for n in h.names],
+            'stk': [h.start[n] for n in h.names],          # stacks at the start of the hand
             'sd': len(h.alive()) > 1,
             'key': hand_key(*h.holes[hero]),
             'bk': _my_buckets(h, hero),
         })
 
     t0 = time.perf_counter()
-    me, table, totals, _ = run(games, hands, seed, memory, on_hand=on_hand, bots=bots, hero=hero)
+    me, table, totals, _ = run(games, hands, seed, memory, on_hand=on_hand, bots=bots, hero=hero,
+                               stacks=stacks)
     book = getattr(me, 'book', None)                 # our bot keeps reads; other bots may not
     return {
         'params': {'games': games, 'hands': hands, 'seed': seed, 'memory': memory,
-                   'bots': list(bots), 'hero': hero},
+                   'bots': list(bots), 'hero': hero, 'stacks': stacks},
         'seconds': round(time.perf_counter() - t0, 2),
         'me': hero,
         'roster': list(ROSTER) + list(CONTESTANTS),   # fixed order, so each bot keeps its color
         'big_blind': 100,
-        'bots': [{'name': n, 'net': totals[n], 'errors': table.errors[n],
+        'bots': [{'name': n, 'net': totals[n], 'rebuys': table.rebuys[n], 'errors': table.errors[n],
                   'illegal': table.illegal[n], 'max_ms': round(table.max_ms[n], 2)}
                  for n in names],
         'my_errors': getattr(me, 'errors', 0),
@@ -179,10 +184,10 @@ def _ci(xs):
     return 1.96 * math.sqrt(sum((x - m) ** 2 for x in xs) / (len(xs) - 1)) / math.sqrt(len(xs))
 
 
-def match(seeds, games, hands, memory, bots, hero, first_seed=0):
+def match(seeds, games, hands, memory, bots, hero, first_seed=0, stacks='carry'):
     """Standings over several seeds (one process per seed) and hero-vs-contestant verdicts."""
     t0 = time.perf_counter()
-    jobs = [(games, hands, s, memory, bots, hero) for s in range(first_seed, first_seed + seeds)]
+    jobs = [(games, hands, s, memory, bots, hero, stacks) for s in range(first_seed, first_seed + seeds)]
     with ProcessPoolExecutor(max_workers=min(len(jobs), os.cpu_count() or 1)) as pool:
         results = list(pool.map(seed_result, jobs))
     r1 = lambda v: None if v is None else round(v, 1)
@@ -194,6 +199,7 @@ def match(seeds, games, hands, memory, bots, hero, first_seed=0):
             'name': n, 'kind': 'contestant' if n in CONTESTANTS else 'practice',
             'mean': r1(sum(xs) / len(xs)), 'ci': r1(_ci(xs)), 'places': places,
             'wins': places.count(1), 'max_ms': r1(max(r['max_ms'].get(n, 0) for r in results)),
+            'rebuys': sum(r['rebuys'].get(n, 0) for r in results),
             'errors': sum(r['errors'].get(n, 0) for r in results),
             'illegal': sum(r['illegal'].get(n, 0) for r in results),
         })
@@ -208,7 +214,7 @@ def match(seeds, games, hands, memory, bots, hero, first_seed=0):
         head_to_head.append({'a': hero, 'b': other, 'diff': r1(d), 'ci': r1(ci), 'verdict': verdict})
     return {
         'params': {'seeds': seeds, 'first_seed': first_seed, 'games': games, 'hands': hands,
-                   'memory': memory, 'bots': list(bots), 'hero': hero},
+                   'memory': memory, 'bots': list(bots), 'hero': hero, 'stacks': stacks},
         'seconds': round(time.perf_counter() - t0, 2),
         'roster': list(ROSTER) + list(CONTESTANTS),
         'standings': standings,
@@ -241,14 +247,14 @@ class Handler(BaseHTTPRequestHandler):
                              'problems': [{'file': f, 'error': e} for f, e in PROBLEMS]})
         elif url.path in ('/api/run', '/api/match'):
             try:
-                games, hands, memory, hero, bots = parse_common(q, match=url.path == '/api/match')
+                games, hands, memory, hero, bots, stacks = parse_common(q, match=url.path == '/api/match')
                 if url.path == '/api/run':
-                    self._json(200, simulate(games, hands, int(q.get('seed', 0)), memory, bots, hero))
+                    self._json(200, simulate(games, hands, int(q.get('seed', 0)), memory, bots, hero, stacks))
                 else:
                     seeds = int(q.get('seeds', 8))
                     if not 1 <= seeds <= MAX_SEEDS:
                         raise ValueError(f'pick 1 to {MAX_SEEDS} seeds')
-                    self._json(200, match(seeds, games, hands, memory, bots, hero, int(q.get('seed', 0))))
+                    self._json(200, match(seeds, games, hands, memory, bots, hero, int(q.get('seed', 0)), stacks))
             except ValueError as e:
                 self._json(400, {'error': str(e)})
         else:

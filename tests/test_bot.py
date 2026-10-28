@@ -363,6 +363,54 @@ def test_riverking_never_folds_or_raises():
     assert rk.act(state('7h 2c', to_call=500, board=cards('Ah Kd Qc 9s 3h'), street='river')) == ('call',)
 
 
+def test_stacks_carry_over_with_rebuys():
+    from protocol import RAISE
+
+    class Shover:
+        def __init__(self, name): self.name = name
+        def new_hand(self, *a): pass
+        def observe(self, ev): pass
+        def end_hand(self, *a): pass
+        def act(self, s): return RAISE(s.max_raise_to)
+
+    bots = [Shover('S1'), Shover('S2'), Shover('S3')]
+    t = Table(bots, seed=4)                              # carry=True is the default
+    for h in range(60):
+        nets = t.play_hand(h, h % 3)
+        assert sum(nets.values()) == 0
+        assert all(v >= 0 for v in t.stacks.values())
+    rebuys = sum(t.rebuys.values())
+    assert rebuys > 0                                     # all-in every hand: someone busts
+    assert sum(t.stacks.values()) == 3 * 10000 + rebuys * 10000   # chips only enter by buying in
+    reset = Table([Shover('A'), Shover('B')], seed=4, carry=False)
+    reset.play_hand(1, 0)
+    assert not reset.stacks and not reset.rebuys
+
+
+def test_effective_stack_limits_set_mining():
+    from protocol import Event
+    from profiles import ProfileBook
+    raised = [Event('X', 'preflop', 'raise', 800, 800, 150, 100)]
+    s = state('4s 4d', 'BTN', to_call=800, history=raised)
+    s.stack, s.max_raise_to = 50000, 50000              # we're deep...
+    s.stacks, s.bets = {ME: 50000, 'X': 500}, {'X': 800}  # ...but the raiser has 13bb in total
+    assert decide(s, ProfileBook()) == ('fold',)          # 800 x 10 > 1,300 to win: no set-mine
+    s.stacks['X'] = 40000
+    assert decide(s, ProfileBook()) == ('call',)
+
+
+def test_calling_a_short_all_in_counts_as_all_in():
+    from protocol import Event
+    tight = _book_with('X', 0.15, fold_to_bet=0.5, agg=0.3)
+    s = state('As Kd', 'BTN', to_call=6000, board=cards('Ah 7c 2d'), street='flop',
+              history=[Event('X', 'flop', 'bet', 6000, 6000, 1000, 0)])
+    s.pot, s.stack, s.max_raise_to = 7000, 50000, 50000
+    s.stacks, s.bets = {ME: 50000, 'X': 0}, {'X': 6000}  # X is all-in for 60bb; we cover it
+    assert decide(s, tight) == ('fold',)                 # top pair vs a tight all-in: no
+    s.hole = cards('7s 7d')
+    assert decide(s, tight) == ('call',)                 # a set: yes
+
+
 def test_chips_conserved_and_bot_never_errors():
     me = TightProfiler(ME)
     bots = [me] + [RandomBot(f'R{i}', i) for i in range(7)]

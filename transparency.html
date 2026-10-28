@@ -273,7 +273,7 @@ footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--borde
 
         <h3>Facing a raise</h3>
         <ol class="rules">
-          <li><b>Small pairs (22–77), any number of raises:</b> call to set-mine only if the stack behind can pay it off:
+          <li><b>Small pairs (22–77), any number of raises:</b> call to set-mine only if the effective stack (see <a href="#safety">safety rails</a>) can pay it off:
             <span class="eq" style="display:block;margin:8px 0 0"><var>call</var> × <span class="c" data-c="SET_MINE_MULT">—</span> ≤ <var>effective stack</var>
               <span class="where">A set flops about 1 time in 8.5, so the call has to be small next to what's left to win.</span></span></li>
           <li><b>A loose raiser makes it more than <span class="c" data-c="BIG_RAISE_BB">—</span> bb:</b> a stack-off
@@ -440,9 +440,16 @@ footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--borde
       <section id="safety">
         <h2>Safety rails</h2>
         <p class="kicker">Rules that hold no matter what the strategy wants.</p>
+        <h3>Stacks and the effective stack</h3>
+        <p>Stacks carry over from hand to hand. A bot that busts buys back in for 100 big blinds, and winners' stacks keep growing with no cap
+          (a "reset to 100bb every hand" mode also exists). So stacks at a table are usually uneven, and Yosief's own stack is the wrong
+          yardstick. What matters is how much can actually be won or lost:</p>
+        <div class="eq"><var>effective</var> = min(<var>our stack</var>, <var>deepest opponent still in the hand</var>)
+          <span class="where">Measured as totals for this street (chips already in plus chips behind). Set-mining odds, the 35% re-raise call,
+            raise sizes and the all-in rule all use it. If a dealer doesn't report other players' stacks, Yosief falls back to its own.</span></div>
         <h3>Legality gate</h3>
         <ul>
-          <li>Raises are clamped between the minimum legal raise and the cap. If no legal raise fits, Yosief calls (or checks).</li>
+          <li>Raises are clamped between the minimum legal raise and the cap, and never past the effective stack, since nobody could call more. If no legal raise fits, Yosief calls (or checks).</li>
           <li>Yosief never folds when checking is free; a call or fold with nothing to call becomes a check.</li>
           <li>Every public method is wrapped in error handling. If deciding fails, Yosief checks, or folds if checking isn't allowed.</li>
         </ul>
@@ -452,7 +459,7 @@ footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--borde
             re-raise (a preflop 3-bet or more, or a postflop raise of a raise) with one of these hands. A raise that would leave less than 30% behind becomes an all-in only when it's uncapped.</span></div>
         <div class="gallery"><figure class="rg" data-r="UNCAPPED" data-t="Uncapped re-raises"></figure></div>
         <h3>All-in rule (after the flop)</h3>
-        <p>Before any action that would put Yosief all-in, by raising or by calling, it checks its made hand, counting only what its own cards add:</p>
+        <p>Before any action that commits the effective stack (going all-in by raising or calling, or calling a shorter stack's all-in), Yosief checks its made hand, counting only what its own cards add:</p>
         <ol class="rules">
           <li><b>Three of a kind or better</b> (a set, trips, straight, flush, full house): all-in allowed.</li>
           <li><b>One or two pair:</b> allowed only if <b>every opponent still in the hand is loose</b>, because their ranges are wide.</li>
@@ -463,7 +470,7 @@ footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--borde
 
       <section id="evidence">
         <h2>Design decisions and the evidence behind them</h2>
-        <p class="kicker">Each change was measured over 8 seeds × 10,000 hands against our 7-bot practice field (results in bb per 100 hands, as of Oct 27, 2026).</p>
+        <p class="kicker">Each change was measured over 8 seeds × 10,000 hands against our 7-bot practice field, with stacks reset every hand (results in bb per 100 hands, as of Oct 27, 2026).</p>
         <div class="scroll"><table>
           <thead><tr><th>Decision</th><th>Why</th><th class="num">Measured effect</th></tr></thead>
           <tbody>
@@ -477,10 +484,13 @@ footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--borde
             <tr><td>Weak hands never bet, but call when the equity math says so</td><td>The strict "fold all weak hands" version cost 77</td><td class="num up">+77 vs strict</td></tr>
             <tr><td>Wider early-seat opens only with a station still to act</td><td>A caller behind pays off the wider range</td><td class="num up">+60 in early seats</td></tr>
             <tr><td>Keep the 35% button steal</td><td>Narrowing it to 27% didn't help</td><td class="num">no change</td></tr>
+            <tr><td>Stacks carry over with 100bb rebuys, no cap (current rule)</td><td>Realistic: short and deep stacks, real swings</td><td class="num">results about 37× noisier</td></tr>
           </tbody>
         </table></div>
         <div class="callout"><b>Read these numbers with care.</b> They come from practice bots we wrote ourselves, which are easier than stronger opponents would be.
-          A single 10,000-hand run swings by about ±45 bb/100 from luck, and a single seat by about ±120, so we only trust changes that hold up across several seeds.</div>
+          With carried-over, uncapped stacks, a single run swings by hundreds to thousands of bb/100 (a few huge pots between deep stacks decide it), so compare bots over many seeds.
+          The figures here were measured with stacks reset every hand, where a run swings by about ±45.
+          Even then a single seat swings by about ±120, so we only trust changes that hold up across several seeds.</div>
       </section>
 
       <section id="limits">

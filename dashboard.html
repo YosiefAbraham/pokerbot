@@ -219,6 +219,9 @@ tr.me td { font-weight: 600; }
       <label>Games <input type="number" id="games" value="500" min="1"></label>
       <label>Hands / game <input type="number" id="hands" value="20" min="1"></label>
       <label>Seed <input type="number" id="seed" value="0"></label>
+      <label>Stacks <select id="stacks" title="How chip stacks work between hands">
+        <option value="carry">Carry over, rebuy 100bb when busted</option>
+        <option value="reset">Reset to 100bb every hand</option></select></label>
       <label class="check"><input type="checkbox" id="memory" checked> Keep profiles across games</label>
       <button class="primary" id="run-btn" type="submit">Run simulation</button>
       <button type="button" id="theme-btn" title="Toggle light / dark">Theme</button>
@@ -434,7 +437,8 @@ function renderTiles() {
   const me = A.bots[A.meIdx], rank = A.ranked.findIndex(b => b.idx === A.meIdx) + 1;
   const t = [
     ['Win rate', `${signed(A.bb100, 1)}`, `bb/100 · ±${fmt(A.ci, 1)} at 95%`],
-    ['Finish', `${rank} of ${A.names.length}`, `${signed(me.bbNet)} bb total`],
+    ['Finish', `${rank} of ${A.names.length}`, `${signed(me.bbNet)} bb total` +
+      (D.params.stacks === 'carry' ? ` · ${me.rebuys} rebuy${me.rebuys === 1 ? '' : 's'}` : '')],
     ['Hands played', pct(A.vpip), 'voluntarily put chips in'],
     ['Preflop raise', pct(A.pfr), 'raised or re-raised'],
     ['Showdowns won', A.sdN ? pct(A.sdWon / A.sdN) : '—', `of ${fmt(A.sdN)} showdowns`],
@@ -590,7 +594,7 @@ function renderTables() {
   $('board-note').innerHTML = D.reads.length
     ? `Results for every bot, next to the profile ${esc(D.me)} built of it. Labels come from <code>Profile.kind()</code>; names are the true archetypes.`
     : `Results for every bot. ${esc(D.me)} doesn't share reads (only bots that keep a <code>ProfileBook</code> as <code>self.book</code> do), so the read columns are empty.`;
-  $('board-table').innerHTML = `<tr><th>Bot</th><th>Net bb</th><th>bb/100</th><th>Errors</th><th>Illegal</th><th>Slowest ms</th>
+  $('board-table').innerHTML = `<tr><th>Bot</th><th>Net bb</th><th>bb/100</th><th>Rebuys</th><th>Errors</th><th>Illegal</th><th>Slowest ms</th>
     <th class="l">Label</th><th>Plays</th><th>Raises pre</th><th>Folds to bet</th><th>Aggression</th><th>River bluffs</th><th>Tilt shift</th></tr>` +
     A.ranked.map(b => {
       const r = reads[b.name], me = b.idx === A.meIdx;
@@ -599,7 +603,7 @@ function renderTables() {
         : `<td class="l" style="color:var(--muted)">—</td>${'<td></td>'.repeat(6)}`;
       return `<tr class="${me ? 'me' : ''}"><td><span class="dot" style="background:${A.color[b.idx]}"></span>${b.name}${me ? ' (you)' : ''}</td>
         <td class="${cls(b.net)}">${signed(b.bbNet)}</td><td class="${cls(b.net)}">${signed(b.bb100, 1)}</td>
-        <td>${b.errors}</td><td>${b.illegal}</td><td>${fmt(b.max_ms, 1)}</td>${readCells}</tr>`;
+        <td>${D.params.stacks === 'carry' ? b.rebuys : '—'}</td><td>${b.errors}</td><td>${b.illegal}</td><td>${fmt(b.max_ms, 1)}</td>${readCells}</tr>`;
     }).join('');
 }
 
@@ -704,10 +708,13 @@ function renderReplay() {
   const seatsHTML = order.map(j => {
     const b = h.seats[j], me = b === A.meIdx;
     const net = done ? `<span class="${cls(h.nets[j])}">${signed(h.nets[j] / bb, 1)}</span>` : `${fmt(put[j] / bb, 1)} in`;
+    const stack = !h.stk ? '' : done
+      ? `stack ${fmt((h.stk[j] + h.nets[j]) / bb, 1)} bb` : `${fmt((h.stk[j] - put[j]) / bb, 1)} bb behind`;
     return `<div class="seat ${out[j] ? 'out' : ''} ${j === nextActor ? 'turn' : ''}" style="${me ? 'border-color:var(--s1)' : ''}">
       <div class="nm"><span><span class="dot" style="background:${A.color[b]}"></span>${names[b]}</span><span style="color:var(--muted)">${h.pos[j]}</span></div>
       <div style="margin:5px 0">${cardsHTML(h.hole[j])}</div>
-      <div class="last">${last[j] || '&nbsp;'}</div><div>${net}</div></div>`;
+      <div class="last">${last[j] || '&nbsp;'}</div><div>${net}</div>
+      <div style="color:var(--muted);font-size:12px">${stack}</div></div>`;
   }).join('');
   let logHTML = '', cur = -1;
   h.acts.forEach((a, k) => {
@@ -796,6 +803,7 @@ async function loadRoster() {
   try {
     const d = await fetch('/api/bots').then(r => r.json());
     roster.all = d.roster; roster.max = d.max; roster.heroes = d.heroes;
+    if (['carry', 'reset'].includes(recall('stacks'))) $('stacks').value = recall('stacks');
     const savedHero = recall('hero');
     roster.hero = d.heroes.includes(savedHero) ? savedHero : d.default_hero;
     const saved = recall('bots');
@@ -815,7 +823,7 @@ function setHeroText(n) {
 }
 function runParams() {
   const q = new URLSearchParams({ games: $('games').value, hands: $('hands').value, seed: $('seed').value,
-    memory: $('memory').checked ? '1' : '0', hero: roster.hero });
+    memory: $('memory').checked ? '1' : '0', hero: roster.hero, stacks: $('stacks').value });
   if (roster.all.length) q.set('bots', lineup().join(','));
   return q;
 }
@@ -847,12 +855,12 @@ function renderMatch(m) {
       <td class="l"><span class="dot" style="background:${color(s.name)}"></span>${esc(s.name)}${s.name === p.hero ? ' (you)' : ''}${s.kind === 'contestant' ? '<span class="tag">contestant</span>' : ''}</td>
       <td class="${cls(s.mean)}">${signed(s.mean, 1)}</td><td>${s.ci == null ? '—' : '±' + fmt(s.ci, 1)}</td>
       <td>${s.wins} of ${s.places.length}</td><td class="l places">${s.places.join(' · ')}</td>
-      <td>${fmt(s.max_ms, 1)}</td><td>${s.errors} / ${s.illegal}</td></tr>`).join('');
+      <td>${p.stacks === 'carry' ? fmt(s.rebuys) : '—'}</td><td>${fmt(s.max_ms, 1)}</td><td>${s.errors} / ${s.illegal}</td></tr>`).join('');
   $('match-out').innerHTML = verdicts +
-    `<p class="note" style="margin:6px 0 10px">${p.seeds} seed${p.seeds > 1 ? 's' : ''} (${p.first_seed}${p.seeds > 1 ? '–' + last : ''}) × ${fmt(p.games * p.hands)} hands, played in ${m.seconds}s.
+    `<p class="note" style="margin:6px 0 10px">${p.seeds} seed${p.seeds > 1 ? 's' : ''} (${p.first_seed}${p.seeds > 1 ? '–' + last : ''}) × ${fmt(p.games * p.hands)} hands, ${p.stacks === 'carry' ? 'stacks carried over with rebuys' : 'stacks reset every hand'}, played in ${m.seconds}s.
       A difference counts only if it's bigger than its ± range.</p>
     <div class="scroll"><table>
-      <tr><th>#</th><th class="l">Bot</th><th>bb/100</th><th>95% range</th><th>Seeds won</th><th class="l">Place on each seed</th><th>Slowest ms</th><th>Errors / illegal</th></tr>
+      <tr><th>#</th><th class="l">Bot</th><th>bb/100</th><th>95% range</th><th>Seeds won</th><th class="l">Place on each seed</th><th>Rebuys</th><th>Slowest ms</th><th>Errors / illegal</th></tr>
       ${rows}</table></div>`;
 }
 $('match-form').addEventListener('submit', ev => { ev.preventDefault(); runMatch(); });
@@ -882,6 +890,7 @@ async function runSim() {
     renderRoster();
     renderAll();
     st.textContent = `${fmt(A.N)} hands (${d.params.games} games × ${d.params.hands}), seed ${d.params.seed}, ` +
+      `${d.params.stacks === 'carry' ? 'stacks carried over with 100bb rebuys' : 'stacks reset every hand'}, ` +
       `profiles ${d.params.memory ? 'kept' : 'reset'} between games · simulated in ${d.seconds}s`;
     const m = location.hash.match(/hand=(\d+)/);       // e.g. #hand=42 opens hand 42
     if (m && +m[1] >= 1 && +m[1] <= A.N) openHand(+m[1] - 1, true);
@@ -891,6 +900,7 @@ async function runSim() {
   } finally { btn.disabled = false; }
 }
 $('run-form').addEventListener('submit', ev => { ev.preventDefault(); runSim(); });
+$('stacks').addEventListener('change', () => store('stacks', $('stacks').value));
 ['f-kind', 'f-pos'].forEach(id => $(id).addEventListener('change', () => { ui.page = 0; renderList(); }));
 $('f-key').addEventListener('input', () => { ui.page = 0; renderList(); });
 $('pg-prev').onclick = () => { ui.page = Math.max(0, ui.page - 1); renderList(); };
