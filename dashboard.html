@@ -1,0 +1,908 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pokerbot Test Bench</title>
+<style>
+:root {
+  color-scheme: light;
+  --page: #f9f9f7;
+  --surface: #fcfcfb;
+  --raised: #ffffff;
+  --ink: #0b0b0b;
+  --ink-2: #52514e;
+  --muted: #898781;
+  --grid: #e1e0d9;
+  --axis: #c3c2b7;
+  --border: rgba(11, 11, 11, 0.10);
+  --wash: rgba(11, 11, 11, 0.04);
+  --pos: #2a78d6;
+  --neg: #e34948;
+  --mid: #f0efec;
+  --good-text: #006300;
+  --bad-text: #b42f2f;
+  --red-suit: #c8302f;
+  --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100;
+  --s5: #e87ba4; --s6: #008300; --s7: #6250d6; --s8: #e34948; --s9: #8a6d52;
+  --s10: #0e8a8a; --s11: #7a8f00; --s12: #5f6b7a; --s13: #3a5ba0;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --page: #0d0d0d; --surface: #1a1a19; --raised: #222220;
+    --ink: #f0efec; --ink-2: #c3c2b7; --muted: #898781;
+    --grid: #2c2c2a; --axis: #383835;
+    --border: rgba(255, 255, 255, 0.10); --wash: rgba(255, 255, 255, 0.05);
+    --pos: #3987e5; --neg: #e66767; --mid: #383835;
+    --good-text: #0ca30c; --bad-text: #e66767; --red-suit: #ef6f6e;
+    --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500;
+    --s5: #d55181; --s6: #008300; --s7: #9085e9; --s8: #e66767; --s9: #b0937a;
+    --s10: #2bb3b3; --s11: #a8c23a; --s12: #9aa5b4; --s13: #7f9be0;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --page: #0d0d0d; --surface: #1a1a19; --raised: #222220;
+  --ink: #f0efec; --ink-2: #c3c2b7; --muted: #898781;
+  --grid: #2c2c2a; --axis: #383835;
+  --border: rgba(255, 255, 255, 0.10); --wash: rgba(255, 255, 255, 0.05);
+  --pos: #3987e5; --neg: #e66767; --mid: #383835;
+  --good-text: #0ca30c; --bad-text: #e66767; --red-suit: #ef6f6e;
+  --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500;
+  --s5: #d55181; --s6: #008300; --s7: #9085e9; --s8: #e66767; --s9: #b0937a;
+  --s10: #2bb3b3; --s11: #a8c23a; --s12: #9aa5b4; --s13: #7f9be0;
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--page); color: var(--ink);
+  font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+.wrap { max-width: 1240px; margin: 0 auto; padding: 20px 16px 64px; }
+header { display: flex; flex-wrap: wrap; align-items: end; gap: 12px 24px; margin-bottom: 18px; }
+h1 { font-size: 20px; margin: 0; letter-spacing: -0.01em; }
+.sub { color: var(--ink-2); margin: 2px 0 0; }
+.learn { display: inline-block; margin-top: 4px; font-size: 13px; color: var(--pos); text-decoration: none; font-weight: 500; }
+.learn:hover { text-decoration: underline; }
+h2 { font-size: 15px; margin: 0 0 2px; }
+.note { color: var(--muted); font-size: 12.5px; margin: 0 0 12px; }
+.controls { display: flex; flex-wrap: wrap; gap: 10px; align-items: end; margin-left: auto; }
+.controls label { display: grid; gap: 3px; font-size: 12px; color: var(--ink-2); }
+.controls label.check { display: flex; gap: 6px; align-items: center; padding-bottom: 7px; }
+input[type=number], input[type=text], select {
+  font: inherit; color: var(--ink); background: var(--raised);
+  border: 1px solid var(--border); border-radius: 6px; padding: 5px 8px; width: 84px;
+}
+input[type=text] { width: 110px; }
+select { width: auto; }
+button {
+  font: inherit; color: var(--ink); background: var(--raised); cursor: pointer;
+  border: 1px solid var(--border); border-radius: 6px; padding: 5px 12px;
+}
+button:hover { background: var(--wash); }
+button.primary { background: var(--ink); color: var(--page); border-color: var(--ink); font-weight: 600; }
+button.primary:disabled { opacity: 0.5; cursor: progress; }
+button[aria-pressed=true] { background: var(--ink); color: var(--page); }
+.roster { flex-basis: 100%; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.roster .lbl { font-size: 12px; color: var(--ink-2); margin-right: 4px; }
+.roster button { display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; font-size: 12.5px; }
+.roster button i { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+.roster button[aria-pressed=false] { color: var(--muted); text-decoration: line-through; background: transparent; }
+.roster button[aria-pressed=false] i { opacity: .35; }
+.roster button[aria-pressed=true] { background: var(--raised); color: var(--ink); }
+.roster .hint { font-size: 12px; color: var(--muted); margin-left: 4px; }
+.roster .sep { width: 1px; align-self: stretch; background: var(--border); margin: 2px 6px; }
+.roster .group { display: inline-flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.controls select { font: inherit; color: var(--ink); background: var(--raised); border: 1px solid var(--border); border-radius: 8px; padding: 6px 8px; }
+.tag { font-size: 10.5px; border: 1px solid var(--border); border-radius: 999px; padding: 0 6px; color: var(--ink-2); margin-left: 6px; white-space: nowrap; }
+.warn { color: var(--bad-text); font-size: 12.5px; margin: -8px 0 12px; }
+.match-head { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: end; justify-content: space-between; }
+.match-head form { display: flex; gap: 8px; align-items: end; }
+.match-head label { display: grid; gap: 3px; font-size: 12px; color: var(--ink-2); }
+.match-head input { width: 70px; }
+.verdict { font-size: 15px; margin: 4px 0 2px; }
+.verdict b { font-weight: 650; }
+.places { color: var(--muted); font-size: 12px; letter-spacing: .02em; white-space: nowrap; }
+#status { color: var(--ink-2); font-size: 12.5px; min-height: 18px; margin: -6px 0 14px; }
+#status.error { color: var(--bad-text); }
+
+.card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+  padding: 16px; min-width: 0;
+}
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px; }
+.stack { margin-top: 16px; }
+@media (max-width: 860px) { .grid2 { grid-template-columns: 1fr; } }
+
+.tiles { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; }
+@media (max-width: 960px) { .tiles { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 520px) { .tiles { grid-template-columns: repeat(2, 1fr); } }
+.tile .label { color: var(--ink-2); font-size: 12px; }
+.tile .value { font-size: 24px; font-weight: 650; letter-spacing: -0.01em; margin-top: 2px; }
+.tile .hint { color: var(--muted); font-size: 12px; }
+
+.legend { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 4px 0 8px; font-size: 12.5px; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; cursor: default; color: var(--ink-2); }
+.legend i { width: 14px; height: 3px; border-radius: 2px; display: inline-block; }
+.chart { position: relative; width: 100%; }
+.chart svg { display: block; width: 100%; overflow: visible; }
+.chart text { fill: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+.chart text.lbl { fill: var(--ink-2); font-size: 11.5px; }
+
+#tip {
+  position: fixed; pointer-events: none; z-index: 10; display: none;
+  background: var(--raised); color: var(--ink); border: 1px solid var(--border);
+  border-radius: 8px; padding: 8px 10px; font-size: 12.5px; box-shadow: 0 4px 16px rgba(0,0,0,.12);
+  max-width: 260px;
+}
+#tip .t { font-weight: 600; margin-bottom: 4px; }
+#tip .row { display: flex; justify-content: space-between; gap: 14px; font-variant-numeric: tabular-nums; }
+#tip .row b { font-weight: 500; display: inline-flex; align-items: center; gap: 6px; }
+#tip .row i { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+
+table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }
+th, td { text-align: right; padding: 6px 8px; border-bottom: 1px solid var(--grid); white-space: nowrap; }
+th { color: var(--ink-2); font-weight: 500; font-size: 12px; }
+th:first-child, td:first-child { text-align: left; }
+td.l, th.l { text-align: left; }
+tr.me td { font-weight: 600; }
+.scroll { overflow-x: auto; }
+.up { color: var(--good-text); }
+.down { color: var(--bad-text); }
+.pill {
+  display: inline-block; padding: 1px 8px; border-radius: 99px; font-size: 11.5px;
+  border: 1px solid var(--border); color: var(--ink-2);
+}
+.dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; }
+.bar { position: relative; height: 10px; min-width: 120px; }
+.bar .zero { position: absolute; left: 50%; top: -3px; bottom: -3px; width: 1px; background: var(--axis); }
+.bar .fill { position: absolute; top: 0; height: 10px; border-radius: 3px; }
+
+.hgrid { display: grid; grid-template-columns: repeat(13, 1fr); gap: 2px; max-width: 560px; }
+.hgrid div {
+  aspect-ratio: 1; border-radius: 3px; display: grid; place-items: center;
+  font-size: 10.5px; font-weight: 600; cursor: default; user-select: none;
+}
+.hgrid div:hover { outline: 2px solid var(--ink); outline-offset: -1px; }
+.seg { display: inline-flex; border: 1px solid var(--border); border-radius: 7px; overflow: hidden; }
+.seg button { border: 0; border-radius: 0; padding: 4px 10px; font-size: 12.5px; }
+.scale { display: flex; align-items: center; gap: 8px; font-size: 11.5px; color: var(--muted); margin-top: 10px; }
+.scale .ramp { height: 8px; width: 180px; border-radius: 4px; }
+
+.browser { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; }
+@media (max-width: 960px) { .browser { grid-template-columns: 1fr; } }
+.filters { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 10px; }
+#hand-list tr { cursor: pointer; }
+#hand-list tr:hover td { background: var(--wash); }
+#hand-list tr.sel td { background: var(--wash); box-shadow: inset 0 0 0 0 var(--ink); }
+#hand-list tr.sel td:first-child { box-shadow: inset 3px 0 0 var(--ink); }
+.pager { display: flex; gap: 8px; align-items: center; justify-content: flex-end; margin-top: 8px; color: var(--ink-2); font-size: 12.5px; }
+
+.c { display: inline-block; font-weight: 650; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+.c.r { color: var(--red-suit); }
+.cards .c {
+  background: var(--raised); border: 1px solid var(--border); border-radius: 5px;
+  padding: 2px 5px; margin-right: 3px; min-width: 28px; text-align: center;
+}
+.cards.big .c { font-size: 17px; padding: 5px 7px; min-width: 38px; }
+.cards .c.empty { color: transparent; border-style: dashed; }
+.seats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 12px 0; }
+@media (max-width: 520px) { .seats { grid-template-columns: repeat(2, 1fr); } }
+.seat { border: 1px solid var(--border); border-radius: 8px; padding: 8px; font-size: 12.5px; }
+.seat.out { opacity: 0.45; }
+.seat.turn { border-color: var(--ink); }
+.seat .nm { font-weight: 600; display: flex; justify-content: space-between; }
+.seat .last { color: var(--ink-2); min-height: 18px; }
+.board-row { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+.potv { font-size: 13px; color: var(--ink-2); }
+.potv b { color: var(--ink); font-size: 16px; }
+.log { font-size: 12.5px; max-height: 260px; overflow: auto; border-top: 1px solid var(--grid); margin-top: 10px; padding-top: 6px; }
+.log .st { color: var(--muted); text-transform: uppercase; font-size: 11px; letter-spacing: .06em; margin-top: 6px; }
+.log .a { padding: 1px 0; color: var(--ink-2); }
+.log .a.now { color: var(--ink); font-weight: 600; }
+.log .a.future { opacity: 0.35; }
+.empty-state { color: var(--muted); padding: 40px 0; text-align: center; }
+.kbd { font-size: 11px; color: var(--muted); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Pokerbot Test Bench</h1>
+      <p class="sub" id="sub">YOSIEF (Tight Profiler) against the practice field, local dealer.</p>
+      <a class="learn" href="/transparency">Learn more about Yosief: how it makes every decision →</a>
+    </div>
+    <form class="controls" id="run-form">
+      <label>Playing as <select id="hero" aria-label="Which contestant bot is you"><option>YOSIEF</option></select></label>
+      <label>Games <input type="number" id="games" value="500" min="1"></label>
+      <label>Hands / game <input type="number" id="hands" value="20" min="1"></label>
+      <label>Seed <input type="number" id="seed" value="0"></label>
+      <label class="check"><input type="checkbox" id="memory" checked> Keep profiles across games</label>
+      <button class="primary" id="run-btn" type="submit">Run simulation</button>
+      <button type="button" id="theme-btn" title="Toggle light / dark">Theme</button>
+    </form>
+    <div class="roster" id="roster" role="group" aria-label="Opponents at the table"></div>
+  </header>
+  <div id="status">Loading…</div>
+  <div class="warn" id="problems" hidden></div>
+
+  <section class="tiles" id="tiles"></section>
+
+  <section class="card stack" id="match">
+    <div class="match-head">
+      <div>
+        <h2>Match: settle it over several seeds</h2>
+        <p class="note">One run is mostly luck. A match plays the current lineup on several seeds at once (starting at the seed above) and ranks every bot by its average, with a 95% range. Seat two contestants to get a head-to-head verdict.</p>
+      </div>
+      <form id="match-form">
+        <label>Seeds <input type="number" id="m-seeds" value="8" min="1" max="16"></label>
+        <button class="primary" id="match-btn" type="submit">Run match</button>
+      </form>
+    </div>
+    <div id="match-out"><div class="empty-state" style="padding:16px 0">No match yet.</div></div>
+  </section>
+
+  <section class="card stack">
+    <h2>Cumulative net, all bots</h2>
+    <p class="note">Big blinds won over the run. Hover for values at a hand; click to open that hand below.</p>
+    <div class="legend" id="cum-legend"></div>
+    <div class="chart" id="cum-chart"></div>
+  </section>
+
+  <div class="grid2">
+    <section class="card">
+      <h2><span class="hn">YOSIEF</span> by position</h2>
+      <p class="note">Big blinds won per 100 hands dealt in each seat. Whiskers and ± show the 95% range from luck: seats whose ranges overlap aren't really different. Labels under the seats show how often <span class="hn">YOSIEF</span> played the hand.</p>
+      <div class="chart" id="pos-chart"></div>
+    </section>
+    <section class="card">
+      <h2>Where <span class="hn">YOSIEF</span>'s chips come from</h2>
+      <p class="note">Every hand sorted by how it ended for <span class="hn">YOSIEF</span>.</p>
+      <div class="scroll"><table id="outcome-table"></table></div>
+      <h2 style="margin-top:18px">Postflop, by hand strength</h2>
+      <p class="note"><span class="hn">YOSIEF</span>'s bucket on the last street it saw, for hands that reached the flop (Yosief's own hand-strength buckets, applied to any bot).</p>
+      <div class="scroll"><table id="bucket-table"></table></div>
+    </section>
+  </div>
+
+  <section class="card stack">
+    <div style="display:flex;flex-wrap:wrap;gap:8px 16px;align-items:start;justify-content:space-between">
+      <div>
+        <h2><span class="hn">YOSIEF</span>'s starting hands</h2>
+        <p class="note">Suited above the diagonal, offsuit below. Hover a cell for details.</p>
+      </div>
+      <div class="seg" id="grid-metric">
+        <button type="button" data-m="net" aria-pressed="true">Net per hand dealt</button>
+        <button type="button" data-m="play" aria-pressed="false">How often played</button>
+      </div>
+    </div>
+    <div class="hgrid" id="hgrid"></div>
+    <div class="scale" id="grid-scale"></div>
+  </section>
+
+  <section class="card stack">
+    <h2>Leaderboard and <span class="hn">YOSIEF</span>'s reads</h2>
+    <p class="note" id="board-note">Results for every bot, next to the profile YOSIEF built of it. Labels come from <code>Profile.kind()</code>; names are the true archetypes.</p>
+    <div class="scroll"><table id="board-table"></table></div>
+  </section>
+
+  <section class="card stack">
+    <h2>Hand browser</h2>
+    <p class="note">Filter the log, pick a hand, then step through it. <span class="kbd">← → step · ↑ ↓ previous / next hand</span></p>
+    <div class="browser">
+      <div>
+        <div class="filters">
+          <select id="f-kind">
+            <option value="played">YOSIEF played</option>
+            <option value="all">All hands</option>
+            <option value="sd">YOSIEF at showdown</option>
+            <option value="wins">Biggest YOSIEF wins</option>
+            <option value="losses">Biggest YOSIEF losses</option>
+            <option value="pots">Biggest pots</option>
+          </select>
+          <select id="f-pos"><option value="">Any position</option></select>
+          <input type="text" id="f-key" placeholder="Hand, e.g. AKs">
+        </div>
+        <div class="scroll"><table id="hand-list"></table></div>
+        <div class="pager"><span id="pg-info"></span>
+          <button type="button" id="pg-prev">Prev</button><button type="button" id="pg-next">Next</button></div>
+      </div>
+      <div id="replay"><div class="empty-state">Select a hand to replay it.</div></div>
+    </div>
+  </section>
+</div>
+<div id="tip"></div>
+
+<script>
+'use strict';
+const $ = id => document.getElementById(id);
+const STREETS = ['Preflop', 'Flop', 'Turn', 'River'];
+const POSITIONS = ['UTG', 'UTG1', 'MP', 'HJ', 'CO', 'BTN', 'SB', 'BB'];
+const RANKS = 'AKQJT98765432';
+const KIND_WORD = { b: 'posts', f: 'folds', x: 'checks', c: 'calls', B: 'bets', R: 'raises to' };
+const BUCKETS = ['monster', 'strong', 'medium', 'draw', 'air'];
+const SUIT = { s: '♠', h: '♥', d: '♦', c: '♣' };
+
+let D = null;        // raw run
+let A = null;        // aggregates
+const ui = { metric: 'net', page: 0, list: [], sel: null, step: 0, hover: null };
+
+// ---------- helpers ----------
+const fmt = (v, d = 0) => v.toLocaleString(undefined, { minimumFractionDigits: d, maximumFractionDigits: d });
+const signed = (v, d = 0) => { v = +v.toFixed(d); return (v > 0 ? '+' : v < 0 ? '−' : '') + fmt(Math.abs(v), d); };
+const pct = v => fmt(v * 100, 1) + '%';
+const cls = v => v > 0 ? 'up' : v < 0 ? 'down' : '';
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const css = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+function cardHTML(c) {
+  if (!c) return '<span class="c empty">··</span>';
+  const r = c[0] === 'T' ? '10' : c[0];
+  return `<span class="c ${'hd'.includes(c[1]) ? 'r' : ''}">${r}${SUIT[c[1]]}</span>`;
+}
+const splitCards = s => s.match(/../g) || [];
+const cardsHTML = (s, big) => `<span class="cards${big ? ' big' : ''}">${(Array.isArray(s) ? s : splitCards(s)).map(cardHTML).join('')}</span>`;
+function niceTicks(lo, hi, n = 5) {
+  const span = hi - lo || 1, raw = span / n, mag = 10 ** Math.floor(Math.log10(raw));
+  const step = [1, 2, 2.5, 5, 10].map(m => m * mag).find(s => s >= raw);
+  const out = [];
+  for (let v = Math.ceil(lo / step) * step; v <= hi + 1e-9; v += step) out.push(+v.toFixed(6));
+  return out;
+}
+function diverge(t) {           // t in [-1, 1] -> color-mix between neutral and the pole
+  const p = Math.round(Math.min(1, Math.abs(t)) * 100);
+  return `color-mix(in oklab, ${t >= 0 ? 'var(--pos)' : 'var(--neg)'} ${p}%, var(--mid))`;
+}
+function sequential(t) {
+  return `color-mix(in oklab, var(--pos) ${Math.round(Math.min(1, t) * 100)}%, var(--mid))`;
+}
+const tip = $('tip');
+function showTip(html, ev) {
+  tip.innerHTML = html; tip.style.display = 'block';
+  const w = tip.offsetWidth, h = tip.offsetHeight;
+  let x = ev.clientX + 14, y = ev.clientY + 14;
+  if (x + w > innerWidth - 8) x = ev.clientX - w - 14;
+  if (y + h > innerHeight - 8) y = ev.clientY - h - 14;
+  tip.style.left = x + 'px'; tip.style.top = y + 'px';
+}
+const hideTip = () => { tip.style.display = 'none'; };
+const botColor = (name, roster) => `var(--s${2 + (Math.max(0, roster.indexOf(name)) % 12)})`;
+const heroName = () => (D ? D.me : roster.hero);
+
+// ---------- aggregation ----------
+function aggregate(d) {
+  const bb = d.big_blind, names = d.bots.map(b => b.name), meIdx = names.indexOf(d.me);
+  const nb = names.length, N = d.hands.length;
+  const cum = names.map(() => new Float64Array(N));
+  const run = new Float64Array(nb);
+  const pos = Object.fromEntries(POSITIONS.map(p => [p, { n: 0, played: 0, net: 0, sq: 0 }]));
+  const outcomes = {};
+  const OUT = ['Folded preflop', 'Folded after the flop', 'Won without showdown', 'Showdown, won or split', 'Showdown, lost'];
+  OUT.forEach(o => outcomes[o] = { n: 0, net: 0 });
+  const buckets = Object.fromEntries(BUCKETS.map(b => [b, { n: 0, won: 0, net: 0 }]));
+  const grid = {};
+  let vpip = 0, pfr = 0, sdN = 0, sdWon = 0, sum = 0, sumSq = 0;
+
+  d.hands.forEach((h, i) => {
+    h.seats.forEach((b, j) => { run[b] += h.nets[j] / bb; });
+    for (let b = 0; b < nb; b++) cum[b][i] = run[b];
+    const j = h.seats.indexOf(meIdx), net = h.nets[j] / bb, p = h.pos[j];
+    h.me = j; h.myNet = net; h.pot = h.acts.reduce((s, a) => s + a[3], 0);
+    sum += net; sumSq += net * net;
+    let played = false, raised = false, foldSt = -1;
+    for (const a of h.acts) {
+      if (a[0] !== meIdx) continue;
+      if (a[1] === 0 && 'cBR'.includes(a[2])) played = true;
+      if (a[1] === 0 && 'BR'.includes(a[2])) raised = true;
+      if (a[2] === 'f') foldSt = a[1];
+    }
+    h.played = played;
+    vpip += played; pfr += raised;
+    pos[p].n++; pos[p].played += played; pos[p].net += net; pos[p].sq += net * net;
+    let o;
+    if (foldSt === 0) o = OUT[0];
+    else if (foldSt > 0) o = OUT[1];
+    else if (!h.sd) o = OUT[2];
+    else { sdN++; if (net >= 0) { sdWon++; o = OUT[3]; } else o = OUT[4]; }
+    h.outcome = o;
+    outcomes[o].n++; outcomes[o].net += net;
+    if (h.bk.length) {
+      const bk = buckets[h.bk[h.bk.length - 1]];
+      bk.n++; bk.net += net; bk.won += net > 0;
+    }
+    const g = grid[h.key] || (grid[h.key] = { n: 0, played: 0, net: 0 });
+    g.n++; g.played += played; g.net += net;
+  });
+
+  const mean = sum / N, sd = Math.sqrt(Math.max(0, (sumSq - N * mean * mean) / (N - 1)));
+  const bots = d.bots.map((b, i) => ({ ...b, idx: i, bbNet: b.net / bb, bb100: b.net / bb / N * 100 }));
+  const ranked = [...bots].sort((a, b) => b.net - a.net);
+  // The hero takes slot 1; every other bot keeps its roster slot, so benching one doesn't recolor the rest.
+  const color = {};
+  names.forEach((n, i) => { color[i] = i === meIdx ? 'var(--s1)' : botColor(n, d.roster); });
+  return {
+    names, meIdx, N, cum, pos, outcomes, OUT, buckets, grid, bots, ranked, color, bb,
+    bb100: mean * 100, ci: 1.96 * sd / Math.sqrt(N) * 100,
+    vpip: vpip / N, pfr: pfr / N, sdN, sdWon,
+  };
+}
+
+// ---------- tiles ----------
+function renderTiles() {
+  const me = A.bots[A.meIdx], rank = A.ranked.findIndex(b => b.idx === A.meIdx) + 1;
+  const t = [
+    ['Win rate', `${signed(A.bb100, 1)}`, `bb/100 · ±${fmt(A.ci, 1)} at 95%`],
+    ['Finish', `${rank} of ${A.names.length}`, `${signed(me.bbNet)} bb total`],
+    ['Hands played', pct(A.vpip), 'voluntarily put chips in'],
+    ['Preflop raise', pct(A.pfr), 'raised or re-raised'],
+    ['Showdowns won', A.sdN ? pct(A.sdWon / A.sdN) : '—', `of ${fmt(A.sdN)} showdowns`],
+    ['Robustness', `${D.my_errors + me.errors} errors`, `${me.illegal} illegal · slowest ${fmt(me.max_ms, 1)} ms`],
+  ];
+  $('tiles').innerHTML = t.map(([l, v, h]) =>
+    `<div class="card tile"><div class="label">${l}</div><div class="value">${v}</div><div class="hint">${h}</div></div>`).join('');
+}
+
+// ---------- cumulative chart ----------
+function renderCum() {
+  const el = $('cum-chart'), W = el.clientWidth, H = Math.max(260, Math.min(380, W * 0.42));
+  const m = { l: 56, r: 84, t: 10, b: 28 }, iw = W - m.l - m.r, ih = H - m.t - m.b;
+  const N = A.N;
+  let lo = 0, hi = 0;
+  A.cum.forEach(s => s.forEach(v => { if (v < lo) lo = v; if (v > hi) hi = v; }));
+  const yt = niceTicks(lo, hi, 6);
+  lo = Math.min(lo, yt[0]); hi = Math.max(hi, yt[yt.length - 1]);
+  const x = i => m.l + (N > 1 ? i / (N - 1) : 0) * iw;
+  const y = v => m.t + (hi - v) / (hi - lo || 1) * ih;
+  const step = Math.max(1, Math.floor(N / (iw * 1.5)));
+  let svg = `<svg viewBox="0 0 ${W} ${H}" height="${H}" role="img" aria-label="Cumulative big blinds won by each bot">`;
+  yt.forEach(v => {
+    svg += `<line x1="${m.l}" x2="${m.l + iw}" y1="${y(v)}" y2="${y(v)}" stroke="${v === 0 ? 'var(--axis)' : 'var(--grid)'}" stroke-width="1"/>`;
+    svg += `<text x="${m.l - 8}" y="${y(v) + 4}" text-anchor="end">${signed(v)}</text>`;
+  });
+  niceTicks(0, N, Math.max(2, Math.floor(iw / 110))).forEach(v => {
+    if (v > N) return;
+    svg += `<text x="${x(Math.max(0, v - 1))}" y="${H - 8}" text-anchor="middle">${fmt(v)}</text>`;
+  });
+  const order = A.names.map((_, i) => i).filter(i => i !== A.meIdx).concat([A.meIdx]);   // hero drawn on top
+  order.forEach(b => {
+    const s = A.cum[b];
+    let dPath = '';
+    for (let i = 0; i < N; i += step) dPath += (i ? 'L' : 'M') + x(i).toFixed(1) + ',' + y(s[i]).toFixed(1);
+    dPath += 'L' + x(N - 1).toFixed(1) + ',' + y(s[N - 1]).toFixed(1);
+    const me = b === A.meIdx;
+    svg += `<path class="series" data-b="${b}" d="${dPath}" fill="none" stroke="${A.color[b]}" stroke-width="${me ? 2.5 : 1.5}" stroke-linejoin="round" stroke-linecap="round"/>`;
+  });
+  // direct labels at the right end, nudged apart
+  const ends = A.names.map((n, b) => ({ b, n, y: y(A.cum[b][N - 1]) })).sort((p, q) => p.y - q.y);
+  for (let k = 1; k < ends.length; k++) ends[k].y = Math.max(ends[k].y, ends[k - 1].y + 13);
+  const over = ends[ends.length - 1].y - (m.t + ih);
+  if (over > 0) ends.forEach(e => { e.y -= over; });
+  ends.forEach(e => {
+    svg += `<text class="lbl" x="${m.l + iw + 8}" y="${e.y + 4}" style="${e.b === A.meIdx ? 'font-weight:700;fill:var(--ink)' : ''}">${e.n}</text>`;
+  });
+  svg += `<g id="cross" style="display:none"><line id="cross-l" y1="${m.t}" y2="${m.t + ih}" stroke="var(--axis)"/>`;
+  A.names.forEach((_, b) => { svg += `<circle id="cross-${b}" r="4" fill="${A.color[b]}" stroke="var(--surface)" stroke-width="2"/>`; });
+  svg += `</g><rect id="cum-hit" x="${m.l}" y="${m.t}" width="${iw}" height="${ih}" fill="transparent" style="cursor:crosshair"/></svg>`;
+  el.innerHTML = svg;
+
+  const hit = $('cum-hit'), cross = $('cross');
+  const idxAt = ev => {
+    const r = el.querySelector('svg').getBoundingClientRect();
+    const px = (ev.clientX - r.left) * (W / r.width);
+    return Math.max(0, Math.min(N - 1, Math.round((px - m.l) / iw * (N - 1))));
+  };
+  hit.addEventListener('mousemove', ev => {
+    const i = idxAt(ev);
+    cross.style.display = '';
+    $('cross-l').setAttribute('x1', x(i)); $('cross-l').setAttribute('x2', x(i));
+    A.names.forEach((_, b) => { const c = $('cross-' + b); c.setAttribute('cx', x(i)); c.setAttribute('cy', y(A.cum[b][i])); });
+    const rows = A.names.map((n, b) => [n, b, A.cum[b][i]]).sort((p, q) => q[2] - p[2]);
+    const h = D.hands[i];
+    showTip(`<div class="t">Hand ${fmt(i + 1)} · game ${h.g + 1}</div>` + rows.map(([n, b, v]) =>
+      `<div class="row"><b><i style="background:${A.color[b]}"></i>${n}</b><span>${signed(v)} bb</span></div>`).join('') +
+      `<div class="row" style="margin-top:4px;color:var(--muted)"><span>${esc(heroName())} this hand</span><span>${signed(h.myNet, 1)} bb</span></div>`, ev);
+  });
+  hit.addEventListener('mouseleave', () => { cross.style.display = 'none'; hideTip(); });
+  hit.addEventListener('click', ev => openHand(idxAt(ev), true));
+
+  $('cum-legend').innerHTML = A.names.map((n, b) =>
+    `<span data-b="${b}"><i style="background:${A.color[b]}"></i>${n}${b === A.meIdx ? ' (you)' : ''}</span>`).join('');
+  $('cum-legend').querySelectorAll('span').forEach(s => {
+    s.addEventListener('mouseenter', () => el.querySelectorAll('path.series').forEach(p => {
+      p.style.opacity = p.dataset.b === s.dataset.b ? 1 : 0.15; }));
+    s.addEventListener('mouseleave', () => el.querySelectorAll('path.series').forEach(p => { p.style.opacity = 1; }));
+  });
+}
+
+// ---------- position chart ----------
+function renderPos() {
+  const rows = POSITIONS.filter(p => A.pos[p].n).map(p => {      // smaller tables have no UTG / UTG1
+    const { n, net, sq } = A.pos[p], mean = net / n;
+    const sd = n > 1 ? Math.sqrt(Math.max(0, (sq - n * mean * mean) / (n - 1))) : 0;
+    return { p, ...A.pos[p], bb100: mean * 100, ci: 1.96 * sd / Math.sqrt(n) * 100 };   // 95% range
+  });
+  const neg = rows.some(r => r.bb100 < 0);
+  const el = $('pos-chart'), W = el.clientWidth, H = neg ? 300 : 274;
+  const m = { l: 48, r: 8, t: 34, b: neg ? 66 : 40 }, iw = W - m.l - m.r, ih = H - m.t - m.b;
+  let lo = Math.min(0, ...rows.map(r => r.bb100 - r.ci)), hi = Math.max(0, ...rows.map(r => r.bb100 + r.ci));
+  const yt = niceTicks(lo, hi, 5);
+  lo = Math.min(lo, yt[0]); hi = Math.max(hi, yt[yt.length - 1]);
+  const y = v => m.t + (hi - v) / (hi - lo || 1) * ih;
+  const bw = iw / rows.length, barW = Math.min(36, bw * 0.6);
+  let svg = `<svg viewBox="0 0 ${W} ${H}" height="${H}" role="img" aria-label="${esc(heroName())} big blinds per 100 hands by position">`;
+  yt.forEach(v => {
+    svg += `<line x1="${m.l}" x2="${m.l + iw}" y1="${y(v)}" y2="${y(v)}" stroke="var(--grid)"/>`;
+    svg += `<text x="${m.l - 8}" y="${y(v) + 4}" text-anchor="end">${signed(v)}</text>`;
+  });
+  rows.forEach((r, k) => {
+    const cx = m.l + bw * k + bw / 2, y0 = y(0), y1 = y(r.bb100);
+    const top = Math.min(y0, y1), h = Math.max(1, Math.abs(y1 - y0));
+    const rad = Math.min(4, h / 2);
+    // rounded on the data end only, square on the baseline
+    const pathD = r.bb100 >= 0
+      ? `M${cx - barW / 2},${y0}V${top + rad}Q${cx - barW / 2},${top} ${cx - barW / 2 + rad},${top}H${cx + barW / 2 - rad}Q${cx + barW / 2},${top} ${cx + barW / 2},${top + rad}V${y0}Z`
+      : `M${cx - barW / 2},${y0}V${top + h - rad}Q${cx - barW / 2},${top + h} ${cx - barW / 2 + rad},${top + h}H${cx + barW / 2 - rad}Q${cx + barW / 2},${top + h} ${cx + barW / 2},${top + h - rad}V${y0}Z`;
+    svg += `<path d="${pathD}" fill="${r.bb100 >= 0 ? 'var(--pos)' : 'var(--neg)'}"/>`;
+    const wTop = y(r.bb100 + r.ci), wBot = y(r.bb100 - r.ci), cap = Math.min(8, barW / 2);
+    svg += `<path d="M${cx},${wTop}V${wBot}M${cx - cap / 2},${wTop}H${cx + cap / 2}M${cx - cap / 2},${wBot}H${cx + cap / 2}" stroke="var(--ink-2)" stroke-width="1.25" fill="none"/>`;
+    const [vy, cy] = r.bb100 >= 0 ? [wTop - 18, wTop - 6] : [wBot + 13, wBot + 25];
+    svg += `<text class="lbl" x="${cx}" y="${vy}" text-anchor="middle">${signed(r.bb100, 0)}</text>`;
+    svg += `<text x="${cx}" y="${cy}" text-anchor="middle" style="font-size:10.5px">±${fmt(r.ci)}</text>`;
+    svg += `<text x="${cx}" y="${H - 22}" text-anchor="middle" style="fill:var(--ink-2)">${r.p}</text>`;
+    svg += `<text x="${cx}" y="${H - 8}" text-anchor="middle">${r.n ? pct(r.played / r.n) : '—'}</text>`;
+    svg += `<rect class="hit" data-k="${k}" x="${m.l + bw * k}" y="${m.t}" width="${bw}" height="${ih}" fill="transparent"/>`;
+  });
+  svg += `<line x1="${m.l}" x2="${m.l + iw}" y1="${y(0)}" y2="${y(0)}" stroke="var(--axis)"/></svg>`;
+  el.innerHTML = svg;
+  el.querySelectorAll('rect.hit').forEach(rc => {
+    const r = rows[+rc.dataset.k];
+    rc.addEventListener('mousemove', ev => showTip(`<div class="t">${r.p}</div>
+      <div class="row"><span>Hands dealt</span><span>${fmt(r.n)}</span></div>
+      <div class="row"><span>Played</span><span>${fmt(r.played)} (${r.n ? pct(r.played / r.n) : '—'})</span></div>
+      <div class="row"><span>Net</span><span>${signed(r.net, 1)} bb</span></div>
+      <div class="row"><span>Per 100 hands</span><span>${signed(r.bb100, 1)} bb</span></div>
+      <div class="row"><span>95% range</span><span>${signed(r.bb100 - r.ci, 0)} to ${signed(r.bb100 + r.ci, 0)}</span></div>`, ev));
+    rc.addEventListener('mouseleave', hideTip);
+  });
+}
+
+// ---------- outcome + bucket tables ----------
+function barCell(v, maxAbs) {
+  const w = maxAbs ? Math.abs(v) / maxAbs * 50 : 0;
+  return `<div class="bar"><div class="zero"></div><div class="fill" style="${v >= 0 ? 'left:50%' : `left:${50 - w}%`};width:${w}%;background:${v >= 0 ? 'var(--pos)' : 'var(--neg)'}"></div></div>`;
+}
+function renderTables() {
+  const outs = A.OUT.map(o => ({ o, ...A.outcomes[o] }));
+  let mx = Math.max(...outs.map(r => Math.abs(r.net)));
+  $('outcome-table').innerHTML = `<tr><th>How the hand ended</th><th>Hands</th><th>Share</th><th>Net bb</th><th class="l">Net</th></tr>` +
+    outs.map(r => `<tr><td>${r.o}</td><td>${fmt(r.n)}</td><td>${pct(r.n / A.N)}</td>
+      <td class="${cls(r.net)}">${signed(r.net)}</td><td class="l">${barCell(r.net, mx)}</td></tr>`).join('');
+  const bks = BUCKETS.map(b => ({ b, ...A.buckets[b] }));
+  mx = Math.max(...bks.map(r => Math.abs(r.net)));
+  $('bucket-table').innerHTML = `<tr><th>Bucket</th><th>Hands</th><th>Won</th><th>Net bb</th><th>bb / hand</th><th class="l">Net</th></tr>` +
+    bks.map(r => `<tr><td>${r.b}</td><td>${fmt(r.n)}</td><td>${r.n ? pct(r.won / r.n) : '—'}</td>
+      <td class="${cls(r.net)}">${signed(r.net)}</td><td class="${cls(r.net)}">${r.n ? signed(r.net / r.n, 2) : '—'}</td>
+      <td class="l">${barCell(r.net, mx)}</td></tr>`).join('');
+
+  const reads = Object.fromEntries(D.reads.map(r => [r.name, r]));
+  $('board-note').innerHTML = D.reads.length
+    ? `Results for every bot, next to the profile ${esc(D.me)} built of it. Labels come from <code>Profile.kind()</code>; names are the true archetypes.`
+    : `Results for every bot. ${esc(D.me)} doesn't share reads (only bots that keep a <code>ProfileBook</code> as <code>self.book</code> do), so the read columns are empty.`;
+  $('board-table').innerHTML = `<tr><th>Bot</th><th>Net bb</th><th>bb/100</th><th>Errors</th><th>Illegal</th><th>Slowest ms</th>
+    <th class="l">Label</th><th>Plays</th><th>Raises pre</th><th>Folds to bet</th><th>Aggression</th><th>River bluffs</th><th>Tilt shift</th></tr>` +
+    A.ranked.map(b => {
+      const r = reads[b.name], me = b.idx === A.meIdx;
+      const readCells = r ? `<td class="l"><span class="pill">${r.kind}</span></td><td>${pct(r.vpip)}</td><td>${pct(r.pfr)}</td>
+        <td>${pct(r.fold_to_bet)}</td><td>${pct(r.agg)}</td><td>${pct(r.river_bluff)}</td><td>${signed(r.tilt_delta * 100, 0)} pts</td>`
+        : `<td class="l" style="color:var(--muted)">—</td>${'<td></td>'.repeat(6)}`;
+      return `<tr class="${me ? 'me' : ''}"><td><span class="dot" style="background:${A.color[b.idx]}"></span>${b.name}${me ? ' (you)' : ''}</td>
+        <td class="${cls(b.net)}">${signed(b.bbNet)}</td><td class="${cls(b.net)}">${signed(b.bb100, 1)}</td>
+        <td>${b.errors}</td><td>${b.illegal}</td><td>${fmt(b.max_ms, 1)}</td>${readCells}</tr>`;
+    }).join('');
+}
+
+// ---------- starting-hand grid ----------
+function gridKey(i, j) {
+  if (i === j) return RANKS[i] + RANKS[i];
+  return i < j ? RANKS[i] + RANKS[j] + 's' : RANKS[j] + RANKS[i] + 'o';
+}
+function renderGrid() {
+  const cells = [];
+  const vals = [];
+  for (let i = 0; i < 13; i++) for (let j = 0; j < 13; j++) {
+    const k = gridKey(i, j), g = A.grid[k] || { n: 0, played: 0, net: 0 };
+    cells.push({ k, g });
+    if (g.n >= 5) vals.push(Math.abs(g.net / g.n));
+  }
+  vals.sort((a, b) => a - b);
+  const cap = vals.length ? vals[Math.floor(vals.length * 0.95)] || vals[vals.length - 1] : 1;
+  $('hgrid').innerHTML = cells.map(({ k, g }, idx) => {
+    let bg, t;
+    if (ui.metric === 'net') { t = g.n ? g.net / g.n / (cap || 1) : 0; bg = diverge(t); }
+    else { t = g.n ? g.played / g.n : 0; bg = sequential(t); }
+    const ink = Math.abs(t) > 0.6 ? '#ffffff' : 'var(--ink)';
+    return `<div data-i="${idx}" style="background:${bg};color:${ink}">${k.replace(/[so]$/, '')}</div>`;
+  }).join('');
+  $('hgrid').querySelectorAll('div').forEach(c => {
+    const { k, g } = cells[+c.dataset.i];
+    c.addEventListener('mousemove', ev => showTip(`<div class="t">${k}</div>
+      <div class="row"><span>Dealt</span><span>${fmt(g.n)}</span></div>
+      <div class="row"><span>Played</span><span>${g.n ? pct(g.played / g.n) : '—'}</span></div>
+      <div class="row"><span>Net</span><span>${signed(g.net, 1)} bb</span></div>
+      <div class="row"><span>Per hand dealt</span><span>${g.n ? signed(g.net / g.n, 2) : '—'} bb</span></div>`, ev));
+    c.addEventListener('mouseleave', hideTip);
+    c.addEventListener('click', () => { $('f-key').value = k; $('f-kind').value = 'all'; ui.page = 0; renderList(); });
+  });
+  $('grid-scale').innerHTML = ui.metric === 'net'
+    ? `<span>${signed(-cap, 2)} bb</span><span class="ramp" style="background:linear-gradient(90deg, var(--neg), var(--mid), var(--pos))"></span><span>${signed(cap, 2)} bb per hand dealt</span><span>· click a cell to list those hands</span>`
+    : `<span>Never</span><span class="ramp" style="background:linear-gradient(90deg, var(--mid), var(--pos))"></span><span>Always played</span><span>· click a cell to list those hands</span>`;
+}
+
+// ---------- hand browser ----------
+function filtered() {
+  const kind = $('f-kind').value, p = $('f-pos').value, key = $('f-key').value.trim();
+  let idx = D.hands.map((_, i) => i);
+  const H = D.hands;
+  if (p) idx = idx.filter(i => H[i].pos[H[i].me] === p);
+  if (key) {
+    const kk = key.length >= 2 ? key[0].toUpperCase() + key[1].toUpperCase() + key.slice(2).toLowerCase() : key.toUpperCase();
+    idx = idx.filter(i => H[i].key === kk || (kk.length === 2 && H[i].key.startsWith(kk) && (kk[0] !== kk[1] || H[i].key.length === 2)));
+  }
+  if (kind === 'played') idx = idx.filter(i => H[i].played);
+  if (kind === 'sd') idx = idx.filter(i => H[i].outcome.startsWith('Showdown'));
+  if (kind === 'wins') idx = idx.filter(i => H[i].myNet > 0).sort((a, b) => H[b].myNet - H[a].myNet);
+  if (kind === 'losses') idx = idx.filter(i => H[i].myNet < 0).sort((a, b) => H[a].myNet - H[b].myNet);
+  if (kind === 'pots') idx.sort((a, b) => H[b].pot - H[a].pot);
+  return idx;
+}
+const PAGE = 40;
+function renderList() {
+  ui.list = filtered();
+  const pages = Math.max(1, Math.ceil(ui.list.length / PAGE));
+  ui.page = Math.min(ui.page, pages - 1);
+  const rows = ui.list.slice(ui.page * PAGE, ui.page * PAGE + PAGE);
+  $('hand-list').innerHTML = `<tr><th>Hand</th><th class="l">Pos</th><th class="l">${esc(D.me)}</th><th class="l">Board</th><th>Pot bb</th><th>${esc(D.me)} bb</th></tr>` +
+    (rows.length ? rows.map(i => {
+      const h = D.hands[i];
+      return `<tr data-i="${i}" class="${ui.sel === i ? 'sel' : ''}"><td>${fmt(i + 1)}</td><td class="l">${h.pos[h.me]}</td>
+        <td class="l">${cardsHTML(h.hole[h.me])}</td><td class="l">${h.board ? cardsHTML(h.board) : '<span style="color:var(--muted)">—</span>'}</td>
+        <td>${fmt(h.pot / A.bb, 1)}</td><td class="${cls(h.myNet)}">${signed(h.myNet, 1)}</td></tr>`;
+    }).join('') : `<tr><td colspan="6" class="l" style="color:var(--muted)">No hands match.</td></tr>`);
+  $('pg-info').textContent = `${fmt(ui.list.length)} hands · page ${ui.page + 1} of ${pages}`;
+  $('hand-list').querySelectorAll('tr[data-i]').forEach(tr => tr.addEventListener('click', () => openHand(+tr.dataset.i)));
+}
+function openHand(i, scroll) {
+  ui.sel = i;
+  history.replaceState(null, '', '#hand=' + (i + 1));
+  ui.step = D.hands[i].acts.length;      // open on the finished hand
+  renderReplay();
+  renderList();
+  if (scroll) $('replay').scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+function renderReplay() {
+  const i = ui.sel; if (i == null) return;
+  const h = D.hands[i], n = h.acts.length, step = ui.step, done = step >= n;
+  const names = A.names, bb = A.bb;
+  const shown = h.acts.slice(0, step);
+  const street = done ? 3 : (shown.length ? shown[shown.length - 1][1] : 0);
+  const boardN = done ? splitCards(h.board).length : [0, 3, 4, 5][street];
+  const board = splitCards(h.board);
+  const seatOf = Object.fromEntries(h.seats.map((b, j) => [b, j]));
+  const put = h.seats.map(() => 0), last = h.seats.map(() => ''), out = h.seats.map(() => false);
+  shown.forEach(a => {
+    const j = seatOf[a[0]];
+    put[j] += a[3];
+    if (a[2] === 'f') out[j] = true;
+    last[j] = `${KIND_WORD[a[2]]}${'bcBR'.includes(a[2]) && a[3] ? ' ' + fmt((a[2] === 'R' ? a[4] : a[3]) / bb, 1) + ' bb' : ''}`;
+  });
+  const pot = put.reduce((s, v) => s + v, 0);
+  const nextActor = !done ? seatOf[h.acts[step][0]] : -1;
+  // seat order starting at UTG reads like the table
+  const order = h.seats.map((_, j) => j).sort((a, b) => POSITIONS.indexOf(h.pos[a]) - POSITIONS.indexOf(h.pos[b]));
+  const seatsHTML = order.map(j => {
+    const b = h.seats[j], me = b === A.meIdx;
+    const net = done ? `<span class="${cls(h.nets[j])}">${signed(h.nets[j] / bb, 1)}</span>` : `${fmt(put[j] / bb, 1)} in`;
+    return `<div class="seat ${out[j] ? 'out' : ''} ${j === nextActor ? 'turn' : ''}" style="${me ? 'border-color:var(--s1)' : ''}">
+      <div class="nm"><span><span class="dot" style="background:${A.color[b]}"></span>${names[b]}</span><span style="color:var(--muted)">${h.pos[j]}</span></div>
+      <div style="margin:5px 0">${cardsHTML(h.hole[j])}</div>
+      <div class="last">${last[j] || '&nbsp;'}</div><div>${net}</div></div>`;
+  }).join('');
+  let logHTML = '', cur = -1;
+  h.acts.forEach((a, k) => {
+    if (a[1] !== cur) { cur = a[1]; logHTML += `<div class="st">${STREETS[cur]}${cur ? ' · ' + board.slice(0, [0, 3, 4, 5][cur]).map(c => c[0] + SUIT[c[1]]).join(' ') : ''}</div>`; }
+    const amt = 'bcBR'.includes(a[2]) && a[3] ? ' ' + fmt((a[2] === 'R' ? a[4] : a[3]) / bb, 1) + ' bb' : '';
+    logHTML += `<div class="a ${k === step - 1 ? 'now' : k >= step ? 'future' : ''}" data-k="${k}">${names[a[0]]} ${KIND_WORD[a[2]]}${amt}</div>`;
+  });
+  const bk = h.bk.length ? ` · ${esc(D.me)}'s bucket: ${h.bk.join(' → ')}` : '';
+  $('replay').innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+      <div><h2>Hand ${fmt(i + 1)}</h2><div class="note" style="margin:0">Game ${h.g + 1} · ${h.outcome}${bk}</div></div>
+      <div style="display:flex;gap:6px">
+        <button type="button" id="st-first">|◀</button><button type="button" id="st-prev">◀</button>
+        <button type="button" id="st-next">▶</button><button type="button" id="st-last">▶|</button>
+      </div>
+    </div>
+    <div class="board-row" style="margin-top:12px">
+      <div>${cardsHTML(board.slice(0, boardN).concat(Array(5 - boardN).fill(null)), true)}</div>
+      <div class="potv">Pot <b>${fmt(pot / bb, 1)} bb</b><br>Step ${step} of ${n}${done ? ' · result' : ''}</div>
+    </div>
+    <div class="seats">${seatsHTML}</div>
+    <div class="log" id="log">${logHTML}</div>`;
+  const go = s => { ui.step = Math.max(0, Math.min(n, s)); renderReplay(); };
+  $('st-first').onclick = () => go(0); $('st-prev').onclick = () => go(ui.step - 1);
+  $('st-next').onclick = () => go(ui.step + 1); $('st-last').onclick = () => go(n);
+  $('log').querySelectorAll('.a').forEach(el => el.addEventListener('click', () => go(+el.dataset.k + 1)));
+  const now = $('log').querySelector('.a.now'); if (now) now.scrollIntoView({ block: 'nearest' });
+}
+document.addEventListener('keydown', ev => {
+  if (ui.sel == null || ['INPUT', 'SELECT'].includes(document.activeElement.tagName)) return;
+  const n = D.hands[ui.sel].acts.length;
+  if (ev.key === 'ArrowRight') { ui.step = Math.min(n, ui.step + 1); renderReplay(); ev.preventDefault(); }
+  if (ev.key === 'ArrowLeft') { ui.step = Math.max(0, ui.step - 1); renderReplay(); ev.preventDefault(); }
+  if (ev.key === 'ArrowDown' || ev.key === 'ArrowUp') {
+    const pos = ui.list.indexOf(ui.sel), nxt = ui.list[pos + (ev.key === 'ArrowDown' ? 1 : -1)];
+    if (nxt != null) { ui.page = Math.floor(ui.list.indexOf(nxt) / PAGE); openHand(nxt); }
+    ev.preventDefault();
+  }
+});
+
+// ---------- wiring ----------
+function renderAll() {
+  renderTiles(); renderCum(); renderPos(); renderTables(); renderGrid(); renderList();
+  if (ui.sel != null && ui.sel < D.hands.length) renderReplay();
+  else $('replay').innerHTML = '<div class="empty-state">Select a hand to replay it.</div>';
+}
+// ---------- roster: who plays as you, and which bots sit at the table ----------
+const roster = { all: [], heroes: ['YOSIEF'], hero: 'YOSIEF', max: 7, on: new Set(), ran: '' };
+const lineup = () => roster.all.map(b => b.name).filter(n => roster.on.has(n) && n !== roster.hero);
+const lineupKey = () => roster.hero + '|' + lineup().join(',');
+const store = (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} };
+const recall = k => { try { return localStorage.getItem(k); } catch (e) { return null; } };
+function renderRoster() {
+  const names = roster.all.map(b => b.name), n = lineup().length;
+  const changed = lineupKey() !== roster.ran;
+  const chip = b => {
+    const on = roster.on.has(b.name);
+    const locked = (on && n === 1) || (!on && n >= roster.max);
+    return `<button type="button" data-bot="${esc(b.name)}" aria-pressed="${on}" ${locked ? 'disabled' : ''}
+      title="${esc(b.about)}${on ? ' · click to bench' : ' · click to seat'}"><i style="background:${botColor(b.name, names)}"></i>${esc(b.name)}</button>`;
+  };
+  const practice = roster.all.filter(b => b.kind === 'practice');
+  const rivals = roster.all.filter(b => b.kind === 'contestant' && b.name !== roster.hero);
+  $('roster').innerHTML = '<span class="lbl">At the table</span>' + practice.map(chip).join('') +
+    (rivals.length ? '<span class="sep"></span><span class="group"><span class="lbl">Contestants</span>' + rivals.map(chip).join('') + '</span>' : '') +
+    `<span class="hint">${n} of ${roster.max} seats${changed ? ' · lineup changed: run the simulation to apply' : ''}</span>`;
+  $('hero').innerHTML = roster.heroes.map(h => `<option ${h === roster.hero ? 'selected' : ''}>${esc(h)}</option>`).join('');
+}
+$('roster').addEventListener('click', ev => {
+  const b = ev.target.closest('button[data-bot]');
+  if (!b || b.disabled) return;
+  const name = b.dataset.bot;
+  roster.on.has(name) ? roster.on.delete(name) : roster.on.add(name);
+  store('bots', lineup().join(','));
+  renderRoster();
+});
+$('hero').addEventListener('change', () => {
+  const was = roster.hero;
+  roster.hero = $('hero').value;
+  if (roster.on.delete(roster.hero)) roster.on.add(was);   // swap seats: the old "you" takes the new one's chair
+  if (!lineup().length) roster.all.filter(b => b.default).forEach(b => roster.on.add(b.name));
+  store('hero', roster.hero); store('bots', lineup().join(','));
+  renderRoster();
+});
+async function loadRoster() {
+  try {
+    const d = await fetch('/api/bots').then(r => r.json());
+    roster.all = d.roster; roster.max = d.max; roster.heroes = d.heroes;
+    const savedHero = recall('hero');
+    roster.hero = d.heroes.includes(savedHero) ? savedHero : d.default_hero;
+    const saved = recall('bots');
+    const known = new Set(d.roster.map(b => b.name));
+    const pick = saved ? saved.split(',').filter(n => known.has(n) && n !== roster.hero).slice(0, d.max) : [];
+    roster.on = new Set(pick.length ? pick : d.roster.filter(b => b.default).map(b => b.name));
+    const p = $('problems');
+    p.hidden = !d.problems.length;
+    p.textContent = d.problems.map(x => `Skipped ${x.file}: ${x.error}`).join(' · ');
+  } catch (e) { roster.all = []; }
+  renderRoster();
+}
+function setHeroText(n) {
+  document.querySelectorAll('.hn').forEach(e => { e.textContent = n; });
+  const o = $('f-kind').options;
+  o[0].text = `${n} played`; o[2].text = `${n} at showdown`; o[3].text = `Biggest ${n} wins`; o[4].text = `Biggest ${n} losses`;
+}
+function runParams() {
+  const q = new URLSearchParams({ games: $('games').value, hands: $('hands').value, seed: $('seed').value,
+    memory: $('memory').checked ? '1' : '0', hero: roster.hero });
+  if (roster.all.length) q.set('bots', lineup().join(','));
+  return q;
+}
+
+// ---------- match: the lineup over several seeds ----------
+async function runMatch() {
+  const q = runParams(); q.set('seeds', $('m-seeds').value);
+  const btn = $('match-btn'), out = $('match-out');
+  btn.disabled = true;
+  out.innerHTML = `<div class="empty-state" style="padding:16px 0">Playing ${esc($('m-seeds').value)} seeds in parallel…</div>`;
+  try {
+    const r = await fetch('/api/match?' + q);
+    const m = await r.json();
+    if (!r.ok) throw new Error(m.error || r.statusText);
+    renderMatch(m);
+  } catch (e) {
+    out.innerHTML = `<div class="warn" style="margin:8px 0">Match failed: ${esc(e.message)}</div>`;
+  } finally { btn.disabled = false; }
+}
+function renderMatch(m) {
+  const p = m.params, last = p.first_seed + p.seeds - 1;
+  const color = n => n === p.hero ? 'var(--s1)' : botColor(n, m.roster);
+  const verdicts = m.head_to_head.length
+    ? m.head_to_head.map(h => `<p class="verdict"><b>${esc(h.verdict.charAt(0).toUpperCase() + h.verdict.slice(1))}.</b>
+        ${esc(h.a)} − ${esc(h.b)} = ${signed(h.diff, 1)} bb/100${h.ci == null ? '' : ` ± ${fmt(h.ci, 1)}`}</p>`).join('')
+    : `<p class="note" style="margin:6px 0 0">Seat another contestant (the right side of "At the table") for a head-to-head verdict.</p>`;
+  const rows = m.standings.map((s, i) => `<tr class="${s.name === p.hero ? 'me' : ''}">
+      <td>${i + 1}</td>
+      <td class="l"><span class="dot" style="background:${color(s.name)}"></span>${esc(s.name)}${s.name === p.hero ? ' (you)' : ''}${s.kind === 'contestant' ? '<span class="tag">contestant</span>' : ''}</td>
+      <td class="${cls(s.mean)}">${signed(s.mean, 1)}</td><td>${s.ci == null ? '—' : '±' + fmt(s.ci, 1)}</td>
+      <td>${s.wins} of ${s.places.length}</td><td class="l places">${s.places.join(' · ')}</td>
+      <td>${fmt(s.max_ms, 1)}</td><td>${s.errors} / ${s.illegal}</td></tr>`).join('');
+  $('match-out').innerHTML = verdicts +
+    `<p class="note" style="margin:6px 0 10px">${p.seeds} seed${p.seeds > 1 ? 's' : ''} (${p.first_seed}${p.seeds > 1 ? '–' + last : ''}) × ${fmt(p.games * p.hands)} hands, played in ${m.seconds}s.
+      A difference counts only if it's bigger than its ± range.</p>
+    <div class="scroll"><table>
+      <tr><th>#</th><th class="l">Bot</th><th>bb/100</th><th>95% range</th><th>Seeds won</th><th class="l">Place on each seed</th><th>Slowest ms</th><th>Errors / illegal</th></tr>
+      ${rows}</table></div>`;
+}
+$('match-form').addEventListener('submit', ev => { ev.preventDefault(); runMatch(); });
+
+async function runSim() {
+  const q = runParams();
+  const btn = $('run-btn'), st = $('status');
+  btn.disabled = true; st.className = ''; st.textContent = 'Running simulation…';
+  try {
+    const r = await fetch('/api/run?' + q);
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || r.statusText);
+    D = d; A = aggregate(d);
+    ui.sel = null; ui.page = 0;
+    roster.ran = d.params.hero + '|' + d.params.bots.join(',');
+    const practiceNames = roster.all.filter(b => b.kind === 'practice').map(b => b.name);
+    const benched = practiceNames.filter(n => !d.params.bots.includes(n));
+    $('sub').textContent = `${d.me} against ${d.params.bots.length} bots, local dealer` +
+      (benched.length ? ` · benched: ${benched.join(', ')}` : '') + '.';
+    setHeroText(d.me);
+    renderRoster();
+    renderAll();
+    st.textContent = `${fmt(A.N)} hands (${d.params.games} games × ${d.params.hands}), seed ${d.params.seed}, ` +
+      `profiles ${d.params.memory ? 'kept' : 'reset'} between games · simulated in ${d.seconds}s`;
+    const m = location.hash.match(/hand=(\d+)/);       // e.g. #hand=42 opens hand 42
+    if (m && +m[1] >= 1 && +m[1] <= A.N) openHand(+m[1] - 1, true);
+  } catch (e) {
+    st.className = 'error'; st.textContent = 'Run failed: ' + e.message + ' (is dashboard.py running?)';
+  } finally { btn.disabled = false; }
+}
+$('run-form').addEventListener('submit', ev => { ev.preventDefault(); runSim(); });
+['f-kind', 'f-pos'].forEach(id => $(id).addEventListener('change', () => { ui.page = 0; renderList(); }));
+$('f-key').addEventListener('input', () => { ui.page = 0; renderList(); });
+$('pg-prev').onclick = () => { ui.page = Math.max(0, ui.page - 1); renderList(); };
+$('pg-next').onclick = () => { ui.page++; renderList(); };
+$('f-pos').innerHTML += POSITIONS.map(p => `<option>${p}</option>`).join('');
+$('grid-metric').querySelectorAll('button').forEach(b => b.addEventListener('click', () => {
+  ui.metric = b.dataset.m;
+  $('grid-metric').querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x === b));
+  renderGrid();
+}));
+$('theme-btn').onclick = () => {
+  const dark = document.documentElement.dataset.theme
+    ? document.documentElement.dataset.theme === 'dark'
+    : matchMedia('(prefers-color-scheme: dark)').matches;
+  document.documentElement.dataset.theme = dark ? 'light' : 'dark';
+  try { localStorage.setItem('theme', document.documentElement.dataset.theme); } catch (e) {}
+};
+try { const t = localStorage.getItem('theme'); if (t) document.documentElement.dataset.theme = t; } catch (e) {}
+let rt; addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(() => { if (A) { renderCum(); renderPos(); } }, 120); });
+loadRoster().then(runSim);
+</script>
+</body>
+</html>

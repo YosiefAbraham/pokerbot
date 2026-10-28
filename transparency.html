@@ -1,0 +1,609 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Yosief Transparency</title>
+<style>
+:root {
+  color-scheme: light;
+  --page: #f9f9f7; --surface: #fcfcfb; --raised: #ffffff;
+  --ink: #0b0b0b; --ink-2: #52514e; --muted: #898781;
+  --grid: #e1e0d9; --axis: #c3c2b7;
+  --border: rgba(11, 11, 11, 0.10); --wash: rgba(11, 11, 11, 0.04);
+  --pos: #2a78d6; --neg: #e34948; --mid: #f0efec;
+  --good-text: #006300; --bad-text: #b42f2f; --red-suit: #c8302f;
+  --accent-wash: rgba(42, 120, 214, 0.10);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --page: #0d0d0d; --surface: #1a1a19; --raised: #222220;
+    --ink: #f0efec; --ink-2: #c3c2b7; --muted: #898781;
+    --grid: #2c2c2a; --axis: #383835;
+    --border: rgba(255, 255, 255, 0.10); --wash: rgba(255, 255, 255, 0.05);
+    --pos: #3987e5; --neg: #e66767; --mid: #383835;
+    --good-text: #0ca30c; --bad-text: #e66767; --red-suit: #ef6f6e;
+    --accent-wash: rgba(57, 135, 229, 0.16);
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --page: #0d0d0d; --surface: #1a1a19; --raised: #222220;
+  --ink: #f0efec; --ink-2: #c3c2b7; --muted: #898781;
+  --grid: #2c2c2a; --axis: #383835;
+  --border: rgba(255, 255, 255, 0.10); --wash: rgba(255, 255, 255, 0.05);
+  --pos: #3987e5; --neg: #e66767; --mid: #383835;
+  --good-text: #0ca30c; --bad-text: #e66767; --red-suit: #ef6f6e;
+  --accent-wash: rgba(57, 135, 229, 0.16);
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; scroll-padding-top: 16px; }
+body {
+  margin: 0; background: var(--page); color: var(--ink);
+  font: 15px/1.6 system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+a { color: var(--pos); }
+.wrap { max-width: 1180px; margin: 0 auto; padding: 20px 16px 80px; }
+.top { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 28px; font-size: 13.5px; }
+.top a { text-decoration: none; }
+button {
+  font: inherit; font-size: 13px; color: var(--ink); background: var(--raised); cursor: pointer;
+  border: 1px solid var(--border); border-radius: 8px; padding: 6px 12px;
+}
+.layout { display: grid; grid-template-columns: 210px minmax(0, 1fr); gap: 40px; }
+nav.toc { position: sticky; top: 16px; align-self: start; font-size: 13.5px; }
+nav.toc ol { list-style: none; margin: 0; padding: 0; border-left: 1px solid var(--border); }
+nav.toc a { display: block; padding: 4px 0 4px 14px; margin-left: -1px; color: var(--ink-2); text-decoration: none; border-left: 2px solid transparent; }
+nav.toc a.on { color: var(--ink); border-left-color: var(--pos); font-weight: 600; }
+@media (max-width: 860px) {
+  .layout { grid-template-columns: minmax(0, 1fr); }
+  nav.toc { position: static; }
+  nav.toc ol { display: flex; flex-wrap: wrap; gap: 6px; border: 0; }
+  nav.toc a { border: 1px solid var(--border); border-radius: 999px; padding: 3px 10px; margin: 0; }
+  nav.toc a.on { border-color: var(--pos); }
+}
+
+h1 { font-size: 30px; line-height: 1.15; margin: 0 0 10px; letter-spacing: -0.01em; }
+.lede { font-size: 17px; color: var(--ink-2); max-width: 68ch; margin: 0 0 8px; }
+.live-note { font-size: 13px; color: var(--muted); margin: 0 0 28px; }
+section { padding-top: 8px; margin-bottom: 44px; }
+h2 { font-size: 22px; margin: 0 0 6px; letter-spacing: -0.01em; }
+h3 { font-size: 16.5px; margin: 26px 0 6px; }
+p, li { max-width: 74ch; }
+.kicker { color: var(--muted); font-size: 13px; margin: 0 0 14px; }
+code { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 0.88em; background: var(--wash); padding: 1px 5px; border-radius: 5px; }
+.c { border-bottom: 1px dotted var(--pos); font-variant-numeric: tabular-nums; font-weight: 600; white-space: nowrap; }
+
+.cards4 { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; margin: 0 0 40px; }
+@media (min-width: 560px) { .cards4 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (min-width: 1140px) { .cards4 { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; }
+.card b { display: block; font-size: 15px; margin-bottom: 4px; }
+.card span { color: var(--ink-2); font-size: 13.5px; }
+
+.eq {
+  background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--pos);
+  border-radius: 8px; padding: 12px 16px; margin: 12px 0 14px; max-width: 74ch;
+  font-family: "Iowan Old Style", "Palatino Linotype", Georgia, serif; font-size: 17px; line-height: 1.7;
+  overflow-x: auto;
+}
+.eq var { font-style: italic; }
+.eq .where { display: block; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; font-size: 13px; color: var(--ink-2); line-height: 1.5; margin-top: 6px; }
+.frac { display: inline-flex; flex-direction: column; vertical-align: middle; text-align: center; margin: 0 3px; }
+.frac > span:first-child { border-bottom: 1px solid currentColor; padding: 0 4px; }
+.frac > span:last-child { padding: 0 4px; }
+
+ol.rules { counter-reset: r; list-style: none; padding: 0; margin: 12px 0; max-width: 80ch; }
+ol.rules > li { counter-increment: r; position: relative; padding: 10px 14px 10px 46px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); margin-bottom: 8px; max-width: none; }
+ol.rules > li::before {
+  content: counter(r); position: absolute; left: 12px; top: 10px; width: 22px; height: 22px; border-radius: 50%;
+  background: var(--accent-wash); color: var(--pos); font-size: 12px; font-weight: 700; display: grid; place-items: center;
+}
+ol.rules > li b { color: var(--ink); }
+
+table { border-collapse: collapse; width: 100%; font-size: 14px; margin: 10px 0 16px; }
+th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
+th { color: var(--ink-2); font-weight: 500; font-size: 12.5px; }
+td.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.scroll { overflow-x: auto; }
+.up { color: var(--good-text); } .down { color: var(--bad-text); }
+
+.flow { display: flex; flex-wrap: wrap; align-items: stretch; gap: 0; margin: 14px 0 6px; }
+.step { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; min-width: 128px; flex: 1 1 128px; }
+.step b { display: block; font-size: 13.5px; }
+.step span { display: block; font-size: 12.5px; color: var(--ink-2); line-height: 1.4; margin-top: 2px; }
+.step.key { border-color: var(--pos); background: var(--accent-wash); }
+.arrow { display: grid; place-items: center; color: var(--muted); padding: 0 6px; font-size: 18px; }
+@media (max-width: 700px) { .flow { flex-direction: column; } .arrow { transform: rotate(90deg); padding: 2px 0; } }
+
+.gallery { display: flex; flex-wrap: wrap; gap: 18px; margin: 12px 0 18px; }
+figure.rg { margin: 0; width: 247px; }
+figure.rg.big { width: 364px; max-width: 100%; }
+.hg { display: grid; grid-template-columns: repeat(13, 1fr); gap: 1px; }
+.hg div {
+  aspect-ratio: 1; display: grid; place-items: center; font-size: 7.5px; font-weight: 600;
+  border-radius: 2px; background: var(--mid); color: var(--muted); user-select: none;
+}
+.hg div.in { background: var(--pos); color: #fff; }
+figure.rg.big .hg div { font-size: 10px; }
+figcaption { font-size: 12.5px; color: var(--ink-2); margin-top: 6px; line-height: 1.4; }
+figcaption b { color: var(--ink); display: block; font-size: 13px; }
+.legend-scale { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); margin-top: 8px; }
+.legend-scale i { flex: 0 0 120px; height: 8px; border-radius: 4px; background: linear-gradient(90deg, var(--pos), var(--mid)); }
+
+.callout { border: 1px solid var(--border); background: var(--surface); border-radius: 10px; padding: 12px 16px; margin: 14px 0; max-width: 74ch; font-size: 14px; color: var(--ink-2); }
+.callout b { color: var(--ink); }
+#tip {
+  position: fixed; pointer-events: none; display: none; z-index: 10;
+  background: var(--raised); color: var(--ink); border: 1px solid var(--border);
+  border-radius: 8px; padding: 6px 9px; font-size: 12.5px; box-shadow: 0 4px 16px rgba(0,0,0,.12);
+}
+footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--border); padding-top: 16px; margin-top: 20px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <a href="/">← Back to the test bench</a>
+    <button type="button" id="theme-btn" title="Toggle light / dark">Theme</button>
+  </div>
+
+  <div class="layout">
+    <nav class="toc" aria-label="On this page">
+      <ol>
+        <li><a href="#principles">Principles</a></li>
+        <li><a href="#pipeline">Decision pipeline</a></li>
+        <li><a href="#ranking">Ranking hands</a></li>
+        <li><a href="#preflop">Preflop</a></li>
+        <li><a href="#postflop">Postflop</a></li>
+        <li><a href="#equity">Equity simulation</a></li>
+        <li><a href="#profiles">Opponent profiles</a></li>
+        <li><a href="#safety">Safety rails</a></li>
+        <li><a href="#evidence">Design decisions</a></li>
+        <li><a href="#limits">Known limits</a></li>
+      </ol>
+    </nav>
+
+    <main>
+      <section id="principles">
+        <h1>Bot transparency: how Yosief decides</h1>
+        <p class="lede">Yosief (the Tight Profiler) is our no-limit hold'em bot. This page lays out every rule,
+          formula and threshold it uses to choose an action, in the order it applies them, and why each one is there.</p>
+        <p class="live-note" id="live-note">Values with a <span class="c">dotted underline</span> and every hand grid are
+          read live from the bot's code, so this page always matches the version that's running.</p>
+
+        <div class="cards4">
+          <div class="card"><b>Play tight</b><span>The base range is any pocket pair plus AK–AT:
+            <span class="c" data-combos="BASE">—</span> of 1,326 starting combos. Yosief opens up only when the table invites it.</span></div>
+          <div class="card"><b>Exploit, don't solve</b><span>Against simple bots, punishing their habits beats
+            game-theory-optimal play, which isn't practical to compute for 8-handed no-limit anyway.</span></div>
+          <div class="card"><b>Profile everyone, always</b><span>Yosief tracks how often every opponent plays, raises,
+            folds and bluffs, and whether they tilt. It keeps updating, so it notices when a bot changes gears.</span></div>
+          <div class="card"><b>Never crash, never act illegally</b><span>Every action passes through one legality gate.
+            Any error falls back to check or fold. A timeout costs more than any exploit gains.</span></div>
+        </div>
+      </section>
+
+      <section id="pipeline">
+        <h2>The decision pipeline</h2>
+        <p class="kicker">What happens between the dealer asking "your action?" and Yosief replying.</p>
+        <div class="flow" role="list">
+          <div class="step" role="listitem"><b>Dealer message</b><span>From the local dealer, or any dealer program</span></div>
+          <div class="arrow" aria-hidden="true">→</div>
+          <div class="step" role="listitem"><b>adapter.py</b><span>The only file that knows the format; turns it into a <code>GameState</code></span></div>
+          <div class="arrow" aria-hidden="true">→</div>
+          <div class="step" role="listitem"><b>observe()</b><span>Every action at the table updates opponent profiles</span></div>
+          <div class="arrow" aria-hidden="true">→</div>
+          <div class="step key" role="listitem"><b>decide()</b><span><code>preflop()</code> or <code>postflop()</code>: a pure function of state + profiles</span></div>
+          <div class="arrow" aria-hidden="true">→</div>
+          <div class="step" role="listitem"><b>legalize()</b><span>Clamp to legal sizes; apply the 2× pot raise cap</span></div>
+          <div class="arrow" aria-hidden="true">→</div>
+          <div class="step" role="listitem"><b>All-in rule</b><span>After the flop, all-in only with a hand that earns it</span></div>
+          <div class="arrow" aria-hidden="true">→</div>
+          <div class="step" role="listitem"><b>Reply</b><span>Typically 2–20 ms</span></div>
+        </div>
+        <p><code>decide()</code> keeps no hidden state: the same situation and the same profiles always give the same
+          action, even the simulation step, which is seeded from the cards. That makes every rule testable on a hand-built
+          situation, and lets us replay any hand and get the same decision.</p>
+      </section>
+
+      <section id="ranking">
+        <h2>Ranking starting hands</h2>
+        <p class="kicker">Several ranges are "the top X% of hands". This is how hands get ranked.</p>
+        <p>Yosief scores all 169 starting hands with the <b>Chen formula</b>, a quick, simple strength estimate:</p>
+        <ol class="rules">
+          <li><b>Score the high card:</b> A = 10, K = 8, Q = 7, J = 6, otherwise half its rank (T = 5, 9 = 4.5, … 2 = 1).</li>
+          <li><b>Pairs:</b> double it, minimum 5 (so 22 = 5, AA = 20). Done.</li>
+          <li><b>Suited:</b> add 2.</li>
+          <li><b>Gap between the cards:</b> subtract 0, 1, 2, 4 or 5 for a gap of 0, 1, 2, 3, or 4+ ranks.</li>
+          <li><b>Connected low cards:</b> add 1 if the gap is 0 or 1 and both cards are below a queen.</li>
+        </ol>
+        <p>Hands are sorted by score and weighted by their combos (6 for a pair, 4 suited, 12 offsuit), giving each hand a
+          percentile: the share of all 1,326 combos at least as strong. <code>top(p)</code> is every hand whose percentile is at most <var>p</var>.</p>
+        <div class="gallery">
+          <figure class="rg big" id="heat"><div class="hg"></div>
+            <figcaption><b>Every hand, by percentile</b>Suited above the diagonal, offsuit below. Bluer = stronger. Hover for the Chen score.</figcaption>
+            <div class="legend-scale"><span>Top</span><i></i><span>Bottom</span></div>
+          </figure>
+        </div>
+      </section>
+
+      <section id="preflop">
+        <h2>Preflop</h2>
+        <p class="kicker">Yosief's seat, who has acted, and who is still to act decide which range applies.</p>
+
+        <h3>Seats</h3>
+        <p>Eight-handed, the seats in order of action are UTG, UTG1, MP, HJ, CO, BTN, SB, BB. They group into
+          <b>early</b> (UTG, UTG1), <b>middle</b> (MP, HJ), <b>late</b> (CO, BTN), <b>SB</b> and <b>BB</b>. At smaller
+          tables the earliest seats disappear first.</p>
+
+        <h3>Nobody has raised yet (unopened or limped pot)</h3>
+        <p>Yosief checks these in order; the first one that matches decides.</p>
+        <ol class="rules">
+          <li><b>Early seats:</b> open the wider early range only when a <b>calling station is still to act</b> and a
+            maniac isn't next to act; otherwise the tight early range. If nobody has limped, no maniac is next, and every
+            opponent still to act folds to preflop raises more than <span class="c" data-c="EARLY_WIDE_FOLD" data-f="pct">—</span>
+            of the time, open the top 15% (minus small pairs). <b>Middle and later seats:</b> open the seat's range.</li>
+          <li><b>Folded to the CO or button:</b> raise to steal the blinds: top 27% from the CO, top 35% from the button.</li>
+          <li><b>Small pairs (22–77):</b> limp to set-mine, from any seat.</li>
+          <li><b>A loose player limped:</b> raise to isolate them with the top 27% of hands.</li>
+          <li><b>Folded to the small blind:</b> steal with <code>STEAL</code>, or <code>STEAL_WIDE</code> when the big blind
+            folds to raises more than 65% of the time. Never steal when a calling station is in the big blind.</li>
+          <li><b>Otherwise:</b> check if it's free, else fold.</li>
+        </ol>
+        <div class="gallery">
+          <figure class="rg" data-r="EARLY_TIGHT" data-t="Early, default"></figure>
+          <figure class="rg" data-r="OPEN_EARLY" data-t="Early, a station still to act"></figure>
+          <figure class="rg" data-r="EARLY_WIDE" data-t="Early, everyone behind folds a lot"></figure>
+          <figure class="rg" data-r="OPEN_MIDDLE" data-t="Middle (MP, HJ)"></figure>
+          <figure class="rg" data-r="OPEN_LATE" data-t="Late, SB, BB opens"></figure>
+          <figure class="rg" data-r="STEAL_CO" data-t="Steal from the CO (top 27%)"></figure>
+          <figure class="rg" data-r="STEAL_BTN" data-t="Steal from the button (top 35%)"></figure>
+          <figure class="rg" data-r="SMALL_PAIRS" data-t="Small pairs: limp and set-mine"></figure>
+          <figure class="rg" data-r="VS_LOOSE" data-t="Isolate a loose limper (top 27%)"></figure>
+          <figure class="rg" data-r="STEAL" data-t="SB steal"></figure>
+          <figure class="rg" data-r="STEAL_WIDE" data-t="SB steal vs a folding BB"></figure>
+        </div>
+
+        <h3>Raise size</h3>
+        <div class="eq"><var>size</var> = <var>bb</var> × (4 + <var>limpers</var> + <var>loose limpers</var>), capped so the raise adds at most <span class="c" data-c="POT_CAP">—</span>× the pot
+          <span class="where">Bigger against more limpers, and bigger still against loose ones, who call anyway. In an unraised pot the blinds total 1.5 bb, so the cap makes a standard open 3 bb.</span></div>
+
+        <h3>Facing a raise</h3>
+        <ol class="rules">
+          <li><b>Small pairs (22–77), any number of raises:</b> call to set-mine only if the stack behind can pay it off:
+            <span class="eq" style="display:block;margin:8px 0 0"><var>call</var> × <span class="c" data-c="SET_MINE_MULT">—</span> ≤ <var>effective stack</var>
+              <span class="where">A set flops about 1 time in 8.5, so the call has to be small next to what's left to win.</span></span></li>
+          <li><b>A loose raiser makes it more than <span class="c" data-c="BIG_RAISE_BB">—</span> bb:</b> a stack-off
+            decision. Call with hands that beat junk (<code>STACK_OFF_VS_LOOSE</code>), fold the rest.</li>
+          <li><b>One raise:</b> pick the ranges by who raised, below. A re-raise is 3× the bet (3.5× from the blinds).
+            Pairs not in the ranges can still set-mine by the formula above. In the big blind, also call a raise of
+            2.5 bb or less with <code>BB_DEFEND</code>.</li>
+          <li><b>A re-raise:</b> shove the four-bet range (a non-premium shove is held to the raise cap), call the
+            call range if the call is at most 35% of the effective stack, fold the rest.</li>
+        </ol>
+        <p>"Loose raiser" means one labeled maniac or loose, or one currently tilting (see <a href="#profiles">profiles</a>).</p>
+        <div class="scroll"><table>
+          <thead><tr><th>Who raised</th><th>Re-raise with</th><th>Call with</th></tr></thead>
+          <tbody>
+            <tr><td>Default</td><td><figure class="rg" data-r="THREE_BET" data-t=""></figure></td><td><figure class="rg" data-r="CALL_RAISE" data-t=""></figure></td></tr>
+            <tr><td>A nit</td><td><figure class="rg" data-r="THREE_BET_VS_NIT" data-t=""></figure></td><td><figure class="rg" data-r="CALL_RAISE_VS_NIT" data-t=""></figure></td></tr>
+            <tr><td>A loose raiser (plays the top 27% in total)</td><td><figure class="rg" data-r="THREE_BET_VS_LOOSE" data-t=""></figure></td><td><figure class="rg" data-r="CALL_RAISE_VS_LOOSE" data-t=""></figure></td></tr>
+          </tbody>
+        </table></div>
+        <div class="scroll"><table>
+          <thead><tr><th>Facing a re-raise from</th><th>Shove (four-bet)</th><th>Call</th></tr></thead>
+          <tbody>
+            <tr><td>Default</td><td><figure class="rg" data-r="FOUR_BET" data-t=""></figure></td><td><figure class="rg" data-r="CALL_3BET" data-t=""></figure></td></tr>
+            <tr><td>A loose re-raiser</td><td><figure class="rg" data-r="FOUR_BET_VS_LOOSE" data-t=""></figure></td><td><figure class="rg" data-r="CALL_3BET_VS_LOOSE" data-t=""></figure></td></tr>
+          </tbody>
+        </table></div>
+        <div class="gallery">
+          <figure class="rg" data-r="STACK_OFF_VS_LOOSE" data-t="Call a huge loose raise"></figure>
+          <figure class="rg" data-r="BB_DEFEND" data-t="Big blind defense (≤ 2.5 bb)"></figure>
+        </div>
+      </section>
+
+      <section id="postflop">
+        <h2>Postflop</h2>
+        <p class="kicker">After the flop, Yosief first sorts its hand into one of five buckets, counting only what its own cards add to the board.</p>
+        <div class="scroll"><table>
+          <thead><tr><th>Bucket</th><th>What's in it</th></tr></thead>
+          <tbody>
+            <tr><td><b>monster</b></td><td>A straight or better, a set (pocket pair plus one on the board), or two pair using both hole cards including top pair</td></tr>
+            <tr><td><b>strong</b></td><td>An overpair, top pair with a ten-or-better kicker, trips using one hole card, or two pair without top pair</td></tr>
+            <tr><td><b>medium</b></td><td>Any other pair (underpair, middle pair, top pair with a weak kicker), or an overpair on a paired board</td></tr>
+            <tr><td><b>draw</b></td><td>On the flop or turn: four to a flush, or an open-ended straight draw (two different cards complete it, 8 outs)</td></tr>
+            <tr><td><b>air</b></td><td>Everything else, including hands where the board plays</td></tr>
+          </tbody>
+        </table></div>
+
+        <h3>Small pairs override everything</h3>
+        <p>With 22–77, unless it made a set or better (the monster bucket), Yosief checks and folds to any bet on every street, however small. They were in the hand to hit a set; without one they put in no more chips.</p>
+
+        <h3>When nobody has bet</h3>
+        <div class="scroll"><table>
+          <thead><tr><th>Bucket</th><th>Bet (fraction of the pot)</th><th>Notes</th></tr></thead>
+          <tbody>
+            <tr><td>monster</td><td>75% · 100% with a station in · 150% with a station heads-up or 3-way</td><td>Heads-up against a maniac before the river: check and let it bet</td></tr>
+            <tr><td>strong</td><td>60% · 75% with a station in · 100% with a station heads-up or 3-way</td><td>Same maniac exception</td></tr>
+            <tr><td>draw</td><td>50% semi-bluff, only if bluffing is allowed</td><td>It has outs if called</td></tr>
+            <tr><td>medium, air</td><td>Never bet</td><td>Check</td></tr>
+          </tbody>
+        </table></div>
+        <div class="eq"><var>bet</var> = <var>committed</var> + max(1 bb, <var>fraction</var> × <var>pot</var>)
+          <span class="where"><b>Bluffing is allowed</b> only with no calling station in the pot, at most two opponents, and the least-folding of them folding to bets more than 55% of the time on this street (65% on the river).</span></div>
+
+        <h3>Facing a bet</h3>
+        <ol class="rules">
+          <li><b>Monster:</b> raise to 3 × (<var>committed</var> + <var>to call</var>).</li>
+          <li><b>A tight bettor's big late bet:</b> fold if the bettor is a nit (or their bet sizing has told on them
+            as "strong") and the bet is at least 75% of the pot on the turn or river.</li>
+          <li><b>Everything else is an equity decision:</b> call only if Yosief's estimated share of the pot beats the price.</li>
+        </ol>
+        <div class="eq">
+          <var>price</var> =
+          <span class="frac"><span><var>to call</var></span><span><var>pot</var> + <var>to call</var></span></span>
+          &nbsp;&nbsp; call if &nbsp; <var>equity</var> ≥ <var>price</var> + <var>margin</var>
+          <span class="where"><var>pot</var> already includes the bet. A pot-sized bet costs 33%; a half-pot bet 25%. <var>margin</var> is 0 against a
+            <b>bluffy</b> bettor and <span class="c" data-c="EQUITY_MARGIN" data-f="pts">—</span> otherwise. A bettor is bluffy if
+            it's a maniac, bluffs the river more than 35% of the time, is tilting, or its bet size has told on it as "weak".</span>
+        </div>
+        <p>This is the "do my outs justify the call?" test done with arithmetic. The equity number counts Yosief's outs <i>and</i>
+          every card that improves the opponents, as described next.</p>
+      </section>
+
+      <section id="equity">
+        <h2>Equity simulation</h2>
+        <p class="kicker">How Yosief estimates its chance of winning a hand it can't see the end of.</p>
+        <ol class="rules">
+          <li><b>Give each opponent a range.</b> An opponent who plays a share <var>v</var> of hands (their profiled
+            <code>vpip</code>) holds a hand from <code>top(max(</code><var>v</var><code>, </code><span class="c" data-c="MIN_RANGE" data-f="pct">—</span><code>))</code>.
+            A bot that plays 70% gets nearly any two cards; a nit gets only premiums.</li>
+          <li><b>Deal.</b> Draw each opponent's cards at random from their range (up to 40 tries, then any two cards if
+            the board has made the range impossible), then deal the rest of the board.</li>
+          <li><b>Score the showdown.</b> A win counts 1, a tie with <var>k</var> players counts 1/<var>k</var>, a loss 0.</li>
+          <li><b>Repeat</b> <span class="c" data-c="EQUITY_SAMPLES">—</span> times and average.</li>
+        </ol>
+        <div class="eq">
+          <var>equity</var> =
+          <span class="frac"><span><var>wins</var> + Σ 1/<var>k</var><sub>ties</sub></span><span><var>N</var></span></span>
+          <span class="where">With <var>N</var> = <span class="c" data-c="EQUITY_SAMPLES">—</span>, the estimate's standard error is about ±3 points. The random draws are seeded from Yosief's cards and the board, so the same spot always gives the same answer.</span>
+        </div>
+        <div class="callout"><b>Example.</b> 55 on a 7♥ 3♦ 7♣ flop: against one loose bot, equity is about 65%, so Yosief calls.
+          Against four opponents it's about 22%, because every 7 or 3 out there beats it, so a 37% price is a fold.</div>
+        <p>A fast evaluator makes this affordable. It scores a seven-card hand in about 10 µs, checking each category directly instead
+          of trying all 21 five-card combinations, and it matched the slower version on 300,000 random hands.</p>
+      </section>
+
+      <section id="profiles">
+        <h2>Opponent profiles</h2>
+        <p class="kicker">How Yosief turns what it sees into reads, without overreacting to small samples.</p>
+
+        <h3>Shrinkage: trust grows with evidence</h3>
+        <div class="eq">
+          <var>stat</var> =
+          <span class="frac"><span><var>hits</var> + <var>prior</var> × <var>K</var></span><span><var>opportunities</var> + <var>K</var></span></span>
+          &nbsp;&nbsp; <var>K</var> = <span class="c" data-c="PRIOR_STRENGTH">—</span>
+          <span class="where">With no data the stat equals the prior; after many observations it equals the player's real rate. The prior is "worth" <var>K</var> observations.</span>
+        </div>
+        <p><b>Priors come from the level above.</b> A seat-specific stat like <code>vpip_late</code> shrinks toward the
+          player's overall <code>vpip</code>; per-street fold-to-bet shrinks toward overall fold-to-bet; and every overall stat
+          shrinks toward the <b>field average</b>, which itself starts from these defaults:</p>
+        <div class="scroll"><table id="defaults"><thead><tr><th>Stat</th><th>Starting guess</th></tr></thead><tbody></tbody></table></div>
+
+        <h3>Decay: recent play counts more</h3>
+        <div class="eq"><var>hits</var> ← <var>d</var> × <var>hits</var> + <var>hit</var>, &nbsp; <var>opportunities</var> ← <var>d</var> × <var>opportunities</var> + 1
+          <span class="where">Per player <var>d</var> = <span class="c" data-c="DECAY">—</span>, a memory of about
+            <span class="c" data-c="DECAY" data-f="mem">—</span> observations (1 ÷ (1 − <var>d</var>)). The field average uses
+            <span class="c" data-c="POP_DECAY">—</span> (about <span class="c" data-c="POP_DECAY" data-f="mem">—</span>). A bot that changes gears gets re-read.</span></div>
+
+        <h3>What gets recorded</h3>
+        <div class="scroll"><table>
+          <thead><tr><th>Stat</th><th>Counts</th></tr></thead>
+          <tbody>
+            <tr><td><code>vpip</code></td><td>Played the hand (called, bet or raised preflop), overall and per seat group</td></tr>
+            <tr><td><code>pfr</code></td><td>Raised preflop</td></tr>
+            <tr><td><code>fold_to_raise_pf</code></td><td>Folded when acting after a preflop raise</td></tr>
+            <tr><td><code>fold_to_bet</code></td><td>Folded when facing a postflop bet, overall and per street</td></tr>
+            <tr><td><code>agg</code></td><td>Share of postflop actions that are bets or raises</td></tr>
+            <tr><td><code>river_bluff</code></td><td>Bet or raised the river, then showed air or a draw</td></tr>
+            <tr><td><code>vpip_after_swing</code></td><td>Played the hand within a few hands of a big win or loss</td></tr>
+            <tr><td>Bet sizes</td><td>Largest postflop bet (fraction of the pot), filed by whether they showed a strong or weak hand</td></tr>
+          </tbody>
+        </table></div>
+
+        <h3>Labels</h3>
+        <p>After <span class="c" data-c="MIN_HANDS_TO_LABEL">—</span> hands, each opponent gets the first label that fits:</p>
+        <ol class="rules">
+          <li><b>nit:</b> plays under 12% of hands.</li>
+          <li><b>maniac:</b> aggression over 45% and plays over 35%.</li>
+          <li><b>station:</b> plays over 40% and folds to bets under 35%.</li>
+          <li><b>folder:</b> folds to bets over 60%.</li>
+          <li><b>loose:</b> plays over <span class="c" data-c="LOOSE_VPIP" data-f="pct">—</span>.</li>
+          <li><b>regular:</b> everything else.</li>
+        </ol>
+        <p>Many rules ask whether a player is <b>loose</b>: a maniac, a station, labeled loose, or currently tilting.</p>
+
+        <h3>Tilt is measured, not assumed</h3>
+        <div class="eq">tilting = within <span class="c" data-c="TILT_WINDOW">—</span> hands of a ±<span class="c" data-c="SWING_BB">—</span> bb swing
+          <b>and</b> <var>vpip</var><sub>after swing</sub> − <var>vpip</var> &gt; <span class="c" data-c="TILT_DELTA" data-f="pts">—</span>
+          <span class="where">Bots only tilt if someone coded them to. Yosief flags tilt only for a player whose play has actually loosened after big swings before.</span></div>
+
+        <h3>Bet-sizing tells</h3>
+        <p>Once a player has shown down at least 3 strong and 3 weak hands after betting, and their average bet sizes for the two differ by
+          at least 25% of the pot, Yosief reads a new bet as "strong" or "weak", whichever average it's closer to.</p>
+      </section>
+
+      <section id="safety">
+        <h2>Safety rails</h2>
+        <p class="kicker">Rules that hold no matter what the strategy wants.</p>
+        <h3>Legality gate</h3>
+        <ul>
+          <li>Raises are clamped between the minimum legal raise and the cap. If no legal raise fits, Yosief calls (or checks).</li>
+          <li>Yosief never folds when checking is free; a call or fold with nothing to call becomes a check.</li>
+          <li>Every public method is wrapped in error handling. If deciding fails, Yosief checks, or folds if checking isn't allowed.</li>
+        </ul>
+        <h3>Raise cap</h3>
+        <div class="eq"><var>raise to</var> ≤ <var>committed</var> + <span class="c" data-c="POT_CAP">—</span> × <var>pot</var>
+          <span class="where">No single raise adds more than <span class="c" data-c="POT_CAP">—</span>× the pot, even with aces. The only exception is a
+            re-raise (a preflop 3-bet or more, or a postflop raise of a raise) with one of these hands. A raise that would leave less than 30% behind becomes an all-in only when it's uncapped.</span></div>
+        <div class="gallery"><figure class="rg" data-r="UNCAPPED" data-t="Uncapped re-raises"></figure></div>
+        <h3>All-in rule (after the flop)</h3>
+        <p>Before any action that would put Yosief all-in, by raising or by calling, it checks its made hand, counting only what its own cards add:</p>
+        <ol class="rules">
+          <li><b>Three of a kind or better</b> (a set, trips, straight, flush, full house): all-in allowed.</li>
+          <li><b>One or two pair:</b> allowed only if <b>every opponent still in the hand is loose</b>, because their ranges are wide.</li>
+          <li><b>The board plays</b> (Yosief's cards add nothing): never.</li>
+        </ol>
+        <p>If the all-in isn't allowed, Yosief calls or checks instead, or folds if the call itself would be all-in.</p>
+      </section>
+
+      <section id="evidence">
+        <h2>Design decisions and the evidence behind them</h2>
+        <p class="kicker">Each change was measured over 8 seeds × 10,000 hands against our 7-bot practice field (results in bb per 100 hands, as of Oct 27, 2026).</p>
+        <div class="scroll"><table>
+          <thead><tr><th>Decision</th><th>Why</th><th class="num">Measured effect</th></tr></thead>
+          <tbody>
+            <tr><td>Add a "loose" label and widen preflop against loose players</td><td>The field's biggest loser was being read as a regular</td><td class="num up">+96</td></tr>
+            <tr><td>Calls decided by equity vs pot odds</td><td>Counts our outs and theirs; sees board texture and the number of opponents</td><td class="num up">+31</td></tr>
+            <tr><td>Small pairs limp, set-mine, and fold unless they hit a set</td><td>Cheap flops, no chips without a set</td><td class="num">±0 overall; +11 → +15 bb per small pair</td></tr>
+            <tr><td>Raise cap at 2× the pot</td><td>Keeps pots in proportion; premiums keep their upside</td><td class="num">+11 (noise)</td></tr>
+            <tr><td>All-in rule, in its strictest form</td><td>Never risk the stack on one pair</td><td class="num down">−123</td></tr>
+            <tr><td>… one pair allowed against all-loose opponents (shipped)</td><td>Loose bots' shoves are often junk</td><td class="num">recovers most</td></tr>
+            <tr><td>Play the top 27% when a loose player is in</td><td>Be in more pots with the players who lose chips</td><td class="num up">+22</td></tr>
+            <tr><td>Weak hands never bet, but call when the equity math says so</td><td>The strict "fold all weak hands" version cost 77</td><td class="num up">+77 vs strict</td></tr>
+            <tr><td>Wider early-seat opens only with a station still to act</td><td>A caller behind pays off the wider range</td><td class="num up">+60 in early seats</td></tr>
+            <tr><td>Keep the 35% button steal</td><td>Narrowing it to 27% didn't help</td><td class="num">no change</td></tr>
+          </tbody>
+        </table></div>
+        <div class="callout"><b>Read these numbers with care.</b> They come from practice bots we wrote ourselves, which are easier than stronger opponents would be.
+          A single 10,000-hand run swings by about ±45 bb/100 from luck, and a single seat by about ±120, so we only trust changes that hold up across several seeds.</div>
+      </section>
+
+      <section id="limits">
+        <h2>Known limits</h2>
+        <ul>
+          <li><b>Bets and raises still use the five buckets</b>, not equity, so they don't see board texture. A set on a four-flush board is still a "monster".</li>
+          <li><b>Opponent ranges come from preflop habits only.</b> A player who bets the turn gets the same range as one who checks.</li>
+          <li><b>No multiway adjustment when betting first.</b> Top pair is "strong" against one opponent or four.</li>
+          <li><b>Only the local dealer is wired up.</b> Playing through a different dealer program needs only <code>adapter.py</code> filled in for its message format.</li>
+          <li><b>Thinking time:</b> the equity simulation takes most decisions to 4–20 ms, with rare cases near 40 ms. If decisions need to be faster, fewer samples fix it.</li>
+        </ul>
+      </section>
+
+      <footer>Yosief is a personal project. Source: <code>strategy.py</code>, <code>profiles.py</code>, <code>bot.py</code>.
+        Live values come from <code>/api/abe</code>. <a href="/">Back to the test bench</a>.</footer>
+    </main>
+  </div>
+</div>
+<div id="tip"></div>
+
+<script>
+'use strict';
+const RANKS = 'AKQJT98765432';
+const tip = document.getElementById('tip');
+const keyAt = (i, j) => i === j ? RANKS[i] + RANKS[j] : i < j ? RANKS[i] + RANKS[j] + 's' : RANKS[j] + RANKS[i] + 'o';
+const pct = (v, d = 1) => (v * 100).toFixed(d).replace(/\.0$/, '') + '%';
+
+function showTip(text, ev) {
+  tip.textContent = text; tip.style.display = 'block';
+  const w = tip.offsetWidth, h = tip.offsetHeight;
+  let x = ev.clientX + 12, y = ev.clientY + 12;
+  if (x + w > innerWidth - 8) x = ev.clientX - w - 12;
+  if (y + h > innerHeight - 8) y = ev.clientY - h - 12;
+  tip.style.left = x + 'px'; tip.style.top = y + 'px';
+}
+function hoverable(el, textFor) {
+  el.addEventListener('mousemove', ev => { const t = textFor(ev.target); if (t) showTip(t, ev); else tip.style.display = 'none'; });
+  el.addEventListener('mouseleave', () => { tip.style.display = 'none'; });
+}
+
+function fmtConst(v, f) {
+  if (f === 'pct') return pct(v, 0);
+  if (f === 'pts') return Math.round(v * 100) + ' points';
+  if (f === 'mem') return Math.round(1 / (1 - v)).toLocaleString();
+  return String(v);
+}
+
+function renderGrids(spec) {
+  document.querySelectorAll('figure.rg[data-r]').forEach(fig => {
+    const r = spec.ranges[fig.dataset.r];
+    if (!r) return;
+    const set = new Set(r.hands);
+    let cells = '';
+    for (let i = 0; i < 13; i++) for (let j = 0; j < 13; j++) {
+      const k = keyAt(i, j);
+      cells += `<div class="${set.has(k) ? 'in' : ''}" data-k="${k}">${k.replace(/[so]$/, '')}</div>`;
+    }
+    const title = fig.dataset.t ? `<b>${fig.dataset.t}</b>` : '';
+    fig.innerHTML = `<div class="hg" role="img" aria-label="${fig.dataset.t || fig.dataset.r}: ${r.hands.length} hand types">${cells}</div>
+      <figcaption>${title}${r.combos} combos · ${pct(r.combos / 1326)} of hands</figcaption>`;
+    hoverable(fig.querySelector('.hg'), t => t.dataset.k ? `${t.dataset.k} · ${set.has(t.dataset.k) ? 'in range' : 'not in range'}` : '');
+  });
+}
+
+function renderHeat(spec) {
+  const g = document.querySelector('#heat .hg');
+  let cells = '';
+  for (let i = 0; i < 13; i++) for (let j = 0; j < 13; j++) {
+    const k = keyAt(i, j), p = spec.percentile[k];
+    const mix = Math.round((1 - p) * 100);
+    cells += `<div data-k="${k}" style="background:color-mix(in oklab, var(--pos) ${mix}%, var(--mid));color:${mix > 55 ? '#fff' : 'var(--ink-2)'}">${k.replace(/[so]$/, '')}</div>`;
+  }
+  g.innerHTML = cells;
+  hoverable(g, t => t.dataset.k ? `${t.dataset.k} · Chen score ${spec.chen[t.dataset.k]} · top ${pct(spec.percentile[t.dataset.k])}` : '');
+}
+
+function renderConsts(spec) {
+  const c = spec.constants;
+  document.querySelectorAll('[data-c]').forEach(el => {
+    if (c[el.dataset.c] !== undefined) el.textContent = fmtConst(c[el.dataset.c], el.dataset.f);
+  });
+  document.querySelectorAll('[data-combos]').forEach(el => {
+    const r = spec.ranges[el.dataset.combos];
+    if (r) el.textContent = `${r.combos} (${pct(r.combos / 1326)})`;
+  });
+  const names = { vpip: 'Plays a hand (vpip)', pfr: 'Raises preflop', fold_to_raise_pf: 'Folds to a preflop raise',
+    fold_to_bet: 'Folds to a postflop bet', agg: 'Postflop aggression', river_bluff: 'River bluff rate' };
+  document.querySelector('#defaults tbody').innerHTML = Object.entries(c.DEFAULTS)
+    .map(([k, v]) => `<tr><td>${names[k] || k}</td><td>${pct(v, 0)}</td></tr>`).join('');
+}
+
+async function load() {
+  try {
+    const spec = await fetch('/api/abe').then(r => { if (!r.ok) throw new Error(r.statusText); return r.json(); });
+    renderConsts(spec); renderGrids(spec); renderHeat(spec);
+    const target = location.hash && document.getElementById(location.hash.slice(1));
+    if (target) target.scrollIntoView({ behavior: 'instant' });   // grids just changed the layout
+  } catch (e) {
+    const n = document.getElementById('live-note');
+    n.textContent = 'Live values could not be loaded (is dashboard.py running?). The rules below still apply; dashes mark missing numbers.';
+    n.style.color = 'var(--bad-text)';
+  }
+}
+
+// table of contents: highlight the section in view
+const links = [...document.querySelectorAll('nav.toc a')];
+const seen = new Map();
+const io = new IntersectionObserver(entries => {
+  entries.forEach(e => seen.set(e.target.id, e.isIntersecting));
+  const first = links.find(a => seen.get(a.hash.slice(1)));
+  if (first) links.forEach(a => a.classList.toggle('on', a === first));
+}, { rootMargin: '0px 0px -60% 0px' });
+document.querySelectorAll('main section[id]').forEach(s => io.observe(s));
+
+document.getElementById('theme-btn').onclick = () => {
+  const dark = document.documentElement.dataset.theme
+    ? document.documentElement.dataset.theme === 'dark'
+    : matchMedia('(prefers-color-scheme: dark)').matches;
+  document.documentElement.dataset.theme = dark ? 'light' : 'dark';
+  try { localStorage.setItem('theme', document.documentElement.dataset.theme); } catch (e) {}
+};
+try { const t = localStorage.getItem('theme'); if (t) document.documentElement.dataset.theme = t; } catch (e) {}
+load();
+</script>
+</body>
+</html>
