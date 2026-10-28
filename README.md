@@ -79,8 +79,10 @@ pokerbot/
 │
 ├── bots/                contestant bots (§11): auto-discovered, one file per person
 │   ├── __init__.py      CONTESTANTS registry (YOSIEF + every bots/*.py), PROBLEMS
-│   └── starter.py       STARTER: a simple working bot to copy
+│   ├── starter.py       STARTER: a simple working bot to copy
+│   └── gto.py           GTO as a contestant (the code lives in gto.py)
 │
+├── gto.py               GTO: balanced, solver-style bot (practice bot and contestant)
 ├── engine.py            local dealer (side pots, legality, timing)       ─┐
 ├── opponents.py         practice field: 7 archetype bots (incl. RIVERKING)│ TEST HARNESS
 ├── run_sim.py           simulation runner + CLI report                   │
@@ -299,6 +301,24 @@ tilting, or has a sizing tell that reads "weak".
   - `TILTER`: plays like a regular, then like a maniac for 8 hands after losing 20bb.
   - `REGULAR`: a solid tight-aggressive bot.
   - `RANDOM`: random actions, plus garbage replies and exceptions, to test robustness.
+  - `GTO` (`gto.py`): a balanced, solver-style bot, an approximation of game-theory-optimal play
+    (true GTO for 8-handed no-limit can't be computed). It isn't GTO Wizard or any commercial
+    solver; it's our own approximation in that style. It's the toughest practice opponent and
+    the only one that doesn't play an exploitable archetype.
+    - **No reads, by design:** it treats every opponent the same.
+    - **Preflop:** opening ranges by seat (UTG 12% up to BTN 45%), polarized 3-bets (value plus
+      suited-ace and suited-connector bluffs), and calling ranges that depend on position and the
+      opener's seat.
+    - **Mixed strategies:** hands within 3% of a range's edge are played half the time, using
+      seeded randomness.
+    - **Postflop:** estimates equity (`strategy.equity`) against the ranges that opponents'
+      preflop actions imply. It bets for value above 62% equity (72% multiway), bluffs its
+      weakest hands at a frequency tied to the bet size, and calls when its equity against a
+      bettor's narrowed range beats the pot odds.
+    - **Registered twice, as one bot:** it's in the practice roster (seeded per run, benched by
+      default) and in `bots/` as a contestant, so it can be seated or picked under "Playing as".
+      Discovery allows a contestant to share a practice bot's name only when it's the same
+      class.
 
   They're deliberately simple. **A good result against them doesn't mean the bot will do well
   against stronger or different bots.**
@@ -367,6 +387,19 @@ tilting, or has a sizing tell that reads "weak".
   choice.
 - **Practical effect:** with the default rule, judge bots by matches with many seeds (16), and
   expect single runs to swing by thousands of bb/100.
+
+### GTO vs Yosief (8 seeds with reset stacks, 16 with carry-over; bb/100)
+
+| Lineup | Stacks | Yosief | GTO | Yosief − GTO |
+|---|---|---|---|---|
+| GTO, RIVERKING, NIT, MANIAC, LIMPER, TILTER, REGULAR | reset | +435 (1st) | +252 (5th) | **+182 ± 50, Yosief ahead** |
+| same | carry | +1,567 (1st) | +610 (2nd) | +957 ± 649, Yosief ahead |
+| GTO, STARTER, NIT, MANIAC, LIMPER, TILTER, REGULAR | reset | +131 (1st) | +121 (3rd) | +11 ± 19, too close to call |
+| same | carry | +419 (1st) | +333 (2nd) | +86 ± 298, too close to call |
+
+This is what theory predicts. GTO doesn't exploit anyone, so it leaves money on the table when
+there's a big donor like RIVERKING, which Yosief targets. In a tougher field without RIVERKING,
+GTO holds its own against Yosief.
 
 ### Strategy changes (measured with stacks reset every hand)
 Measured on 8 seeds (0–7) × 10,000 hands each, with profiles kept:
@@ -559,6 +592,11 @@ the diagnostics pick up every bot automatically.
    ```
 
 ### Making your bot
+Three bots are there to learn from:
+- **STARTER** (`bots/starter.py`): simple, the one to copy.
+- **YOSIEF** (`strategy.py`): exploitative, built on opponent reads.
+- **GTO** (`gto.py`): balanced, mixed strategies, no reads.
+
 1. Copy the starter bot: `cp bots/starter.py bots/<yourname>.py`.
 2. Change `NAME` to your bot's name: 2–16 capital letters, digits or `_`, and not already taken.
 3. Edit `act()`. The starter's docstring explains the four methods the dealer calls, what a

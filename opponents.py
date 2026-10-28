@@ -4,6 +4,8 @@ regular, and a random / buggy bot. Deliberately simple; they exist to check that
 and that the strategy beats them."""
 import random
 
+from gto import GTOBot
+
 from cards import rank, suit
 from protocol import CALL, CHECK, FOLD, RAISE
 from ranges import expand, hand_key
@@ -225,6 +227,7 @@ ROSTER = {
     'REGULAR': (Regular, 6, 'Solid tight-aggressive'),
     'RANDOM': (RandomBot, 7, 'Random actions, plus garbage replies and exceptions'),
     'STATION': (Station, 8, 'Calls almost everything'),
+    'GTO': (GTOBot, 9, 'Balanced, solver-style play: mixed ranges, balanced bluffs, no reads'),
 }
 MAX_OPPONENTS = 7                    # tables seat 8, our bot included
 DEFAULT_FIELD = ('RIVERKING', 'NIT', 'MANIAC', 'LIMPER', 'TILTER', 'REGULAR', 'RANDOM')

@@ -458,6 +458,28 @@ def test_discovery_finds_bots_and_reports_problems(tmp_path, monkeypatch):
         del sys.modules[mod]
 
 
+def test_gto_is_both_a_practice_bot_and_a_contestant():
+    from bots import CONTESTANTS, PROBLEMS
+    from dashboard import roster
+    from opponents import ROSTER
+    assert CONTESTANTS['GTO'] is ROSTER['GTO'][0] and not PROBLEMS
+    assert [b['name'] for b in roster()].count('GTO') == 1     # listed once, with the practice bots
+
+
+def test_gto_is_mixed_but_reproducible():
+    from gto import GTOBot
+    from protocol import Event
+    raised = [Event('X', 'preflop', 'raise', 250, 250, 150, 100)]
+    hands = ['As Ks', '7h 6h', 'Qd Jc', '5s 4s', 'Ah 4h', 'Td 9d', '2c 2d', 'Kh Th'] * 5
+    def play(seed):
+        bot = GTOBot('GTO', seed)
+        return [bot.act(state(h, 'BTN', to_call=250, history=raised)) for h in hands]
+    first = play(3)
+    assert first == play(3)                                   # same seed, same decisions
+    assert {a[0] for a in first} >= {'raise', 'call', 'fold'}  # a real mix of actions
+    assert ('raise',) not in first and all(a[0] in ('raise', 'call', 'fold') for a in first)
+
+
 def test_starter_can_be_the_hero():
     from run_sim import run
     lineup = (ME, 'NIT', 'MANIAC', 'LIMPER', 'REGULAR', 'RANDOM', 'RIVERKING')

@@ -29,15 +29,17 @@ def run(games=300, hands=20, seed=0, memory=True, on_hand=None, bots=DEFAULT_FIE
         raise ValueError(f'stacks must be one of {STACK_MODES}')
     rng = random.Random(seed)
 
-    def contestants():                           # fresh instances of every contestant seated
-        return {n: CONTESTANTS[n](n) for n in (hero, *bots) if n in CONTESTANTS}
+    def make(name):                              # practice-roster bots get a per-run seed
+        if name in ROSTER:
+            cls, offset, _ = ROSTER[name]
+            return cls(name, seed + offset)
+        return CONTESTANTS[name](name)
 
-    def practice(name):
-        cls, offset, _ = ROSTER[name]
-        return cls(name, seed + offset)
+    def contestants():                           # fresh instances of every contestant seated
+        return {n: make(n) for n in (hero, *bots) if n in CONTESTANTS}
 
     live = contestants()
-    field = [live[n] if n in CONTESTANTS else practice(n) for n in bots]
+    field = [live[n] if n in CONTESTANTS else make(n) for n in bots]
     totals = {n: 0 for n in (hero, *bots)}
     my_hands = []
     table = Table([], seed=seed, carry=stacks == 'carry')

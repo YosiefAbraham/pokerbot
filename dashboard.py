@@ -87,7 +87,7 @@ def roster():
     practice = [{'name': n, 'about': info, 'kind': 'practice', 'default': n in DEFAULT_FIELD}
                 for n, (_, _, info) in ROSTER.items()]
     contestants = [{'name': n, 'about': about(cls), 'kind': 'contestant', 'default': False}
-                   for n, cls in CONTESTANTS.items()]
+                   for n, cls in CONTESTANTS.items() if n not in ROSTER]   # GTO is listed once
     return practice + contestants
 
 
@@ -164,7 +164,7 @@ def simulate(games, hands, seed, memory, bots=DEFAULT_FIELD, hero=bot.NAME, stac
                    'bots': list(bots), 'hero': hero, 'stacks': stacks},
         'seconds': round(time.perf_counter() - t0, 2),
         'me': hero,
-        'roster': list(ROSTER) + list(CONTESTANTS),   # fixed order, so each bot keeps its color
+        'roster': list(ROSTER) + [n for n in CONTESTANTS if n not in ROSTER],   # fixed order: stable colors
         'big_blind': 100,
         'bots': [{'name': n, 'net': totals[n], 'rebuys': table.rebuys[n], 'errors': table.errors[n],
                   'illegal': table.illegal[n], 'max_ms': round(table.max_ms[n], 2)}
@@ -216,7 +216,7 @@ def match(seeds, games, hands, memory, bots, hero, first_seed=0, stacks='carry')
         'params': {'seeds': seeds, 'first_seed': first_seed, 'games': games, 'hands': hands,
                    'memory': memory, 'bots': list(bots), 'hero': hero, 'stacks': stacks},
         'seconds': round(time.perf_counter() - t0, 2),
-        'roster': list(ROSTER) + list(CONTESTANTS),
+        'roster': list(ROSTER) + [n for n in CONTESTANTS if n not in ROSTER],
         'standings': standings,
         'head_to_head': head_to_head,
     }

@@ -37,8 +37,8 @@ def discover(folder=Path(__file__).parent, package=__name__):
             problems.append((where, 'needs NAME = "..." and class Bot'))
         elif not NAME_RULE.match(name):
             problems.append((where, f'NAME {name!r} must be 2-16 capital letters, digits or _'))
-        elif name in ROSTER or name in found:
-            problems.append((where, f'NAME {name!r} is already taken'))
+        elif name in found or (name in ROSTER and ROSTER[name][0] is not cls):
+            problems.append((where, f'NAME {name!r} is already taken'))   # same bot in both is fine
         else:
             found[name] = cls
     return found, problems

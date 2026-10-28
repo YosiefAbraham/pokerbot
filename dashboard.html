@@ -776,7 +776,7 @@ function renderRoster() {
     return `<button type="button" data-bot="${esc(b.name)}" aria-pressed="${on}" ${locked ? 'disabled' : ''}
       title="${esc(b.about)}${on ? ' · click to bench' : ' · click to seat'}"><i style="background:${botColor(b.name, names)}"></i>${esc(b.name)}</button>`;
   };
-  const practice = roster.all.filter(b => b.kind === 'practice');
+  const practice = roster.all.filter(b => b.kind === 'practice' && b.name !== roster.hero);
   const rivals = roster.all.filter(b => b.kind === 'contestant' && b.name !== roster.hero);
   $('roster').innerHTML = '<span class="lbl">At the table</span>' + practice.map(chip).join('') +
     (rivals.length ? '<span class="sep"></span><span class="group"><span class="lbl">Contestants</span>' + rivals.map(chip).join('') + '</span>' : '') +
